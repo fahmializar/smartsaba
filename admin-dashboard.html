@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Kurikulum Smansaba</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="admin.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.min.js"></script>
+</head>
+<body>
+    <header class="dashboard-header">
+        <div class="header-content">
+            <div class="logo">
+                <i class="fas fa-graduation-cap"></i>
+                <span>Kurikulum Smansaba - Admin</span>
+            </div>
+            <div class="user-info">
+                <span class="welcome-text">Selamat datang, <span id="adminName">Administrator</span></span>
+                <button class="logout-btn" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <nav class="sidebar-nav">
+                <a href="#overview" class="nav-item active" onclick="showSection('overview')">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Overview</span>
+                </a>
+                <a href="#reports" class="nav-item" onclick="showSection('reports')">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span>Laporan Kehadiran</span>
+                </a>
+                <a href="#analytics" class="nav-item" onclick="showSection('analytics')">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Analitik</span>
+                </a>
+                <a href="#files" class="nav-item" onclick="showSection('files')">
+                    <i class="fas fa-folder"></i>
+                    <span>File Guru</span>
+                </a>
+                <a href="#deep-analysis" class="nav-item" onclick="showSection('deep-analysis')">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Analisis Mendalam</span>
+                </a>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <section id="overview" class="content-section active">
+                <div class="section-header">
+                    <h2>Dashboard Overview</h2>
+                    <p>Monitoring sistem manajemen sekolah</p>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-clipboard-check"></i></div>
+                        <div class="stat-info">
+                            <h3 id="totalReports">0</h3>
+                            <p>Total Laporan</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-calendar-week"></i></div>
+                        <div class="stat-info">
+                            <h3 id="weeklyReports">0</h3>
+                            <p>Laporan Minggu Ini</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-calendar-alt"></i></div>
+                        <div class="stat-info">
+                            <h3 id="monthlyReports">0</h3>
+                            <p>Laporan Bulan Ini</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-users"></i></div>
+                        <div class="stat-info">
+                            <h3 id="activeClasses">0</h3>
+                            <p>Kelas Aktif</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="recent-reports">
+                    <h3>Laporan Terbaru</h3>
+                    <div class="reports-preview" id="recentReportsPreview"></div>
+                    <button class="view-all-btn" onclick="showSection('reports')">
+                        <i class="fas fa-eye"></i> Lihat Semua Laporan
+                    </button>
+                </div>
+            </section>
+
+            <section id="reports" class="content-section">
+                <div class="section-header">
+                    <h2>Laporan Kehadiran</h2>
+                    <p>Kelola dan monitor laporan kehadiran dari perwakilan kelas</p>
+                </div>
+
+                <div class="reports-filters">
+                    <div class="filter-group">
+                        <label for="filterMonth">Bulan</label>
+                        <select id="filterMonth" onchange="loadReports()">
+                            <option value="">Semua Bulan</option>
+                            <option value="01">Januari</option>
+                            <option value="02">Februari</option>
+                            <option value="03">Maret</option>
+                            <option value="04">April</option>
+                            <option value="05">Mei</option>
+                            <option value="06">Juni</option>
+                            <option value="07">Juli</option>
+                            <option value="08">Agustus</option>
+                            <option value="09">September</option>
+                            <option value="10">Oktober</option>
+                            <option value="11">November</option>
+                            <option value="12">Desember</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filterYear">Tahun</label>
+                        <select id="filterYear" onchange="loadReports()">
+                            <option value="">Semua Tahun</option>
+                            <option value="2024">2024</option>
+                            <option value="2025">2025</option>
+                            <option value="2026">2026</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filterClass">Kelas</label>
+                        <select id="filterClass" onchange="loadReports()">
+                            <option value="">Semua Kelas</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filterTeacher">Guru</label>
+                        <select id="filterTeacher" onchange="loadReports()">
+                            <option value="">Semua Guru</option>
+                        </select>
+                    </div>
+                    <button class="filter-btn" onclick="loadReports()">
+                        <i class="fas fa-search"></i> Filter
+                    </button>
+                    <button class="export-btn" onclick="exportReports()">
+                        <i class="fas fa-download"></i> Export
+                    </button>
+                </div>
+
+                <div class="reports-container">
+                    <div class="reports-summary" id="reportsSummary"></div>
+                    <div class="reports-list" id="reportsList"></div>
+                </div>
+            </section>
+
+            <section id="analytics" class="content-section">
+                <div class="section-header">
+                    <h2>Analitik Kehadiran</h2>
+                    <p>Analisis data kehadiran guru dan tren pembelajaran</p>
+                </div>
+
+                <div class="analytics-filters">
+                    <div class="filter-group">
+                        <label for="analyticsTeacher">Filter Guru</label>
+                        <select id="analyticsTeacher"><option value="">Semua Guru</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="analyticsClass">Filter Kelas</label>
+                        <select id="analyticsClass"><option value="">Semua Kelas</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="analyticsMonth">Bulan</label>
+                        <select id="analyticsMonth">
+                            <option value="">Semua Bulan</option>
+                            <option value="01">Januari</option>
+                            <option value="02">Februari</option>
+                            <option value="03">Maret</option>
+                            <option value="04">April</option>
+                            <option value="05">Mei</option>
+                            <option value="06">Juni</option>
+                            <option value="07">Juli</option>
+                            <option value="08">Agustus</option>
+                            <option value="09">September</option>
+                            <option value="10">Oktober</option>
+                            <option value="11">November</option>
+                            <option value="12">Desember</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="analyticsYear">Tahun</label>
+                        <select id="analyticsYear">
+                            <option value="">Semua Tahun</option>
+                            <option value="2024">2024</option>
+                            <option value="2025">2025</option>
+                            <option value="2026">2026</option>
+                        </select>
+                    </div>
+                    <button class="filter-btn" onclick="loadAnalytics()">
+                        <i class="fas fa-chart-bar"></i> Analisis
+                    </button>
+                    <button class="filter-btn" onclick="downloadExcelAnalytics()" style="background-color: #10b981;">
+                        <i class="fas fa-download"></i> Download Excel
+                    </button>
+                </div>
+
+                <div class="analytics-summary-cards">
+                    <div class="summary-card">
+                        <div class="card-label">Total Kehadiran</div>
+                        <div class="card-value" id="totalRecords">0</div>
+                        <div class="card-percent" id="hadirPercent">0%</div>
+                    </div>
+                    <div class="summary-card success">
+                        <div class="card-label">Hadir</div>
+                        <div class="card-value" id="hadirCount">0</div>
+                        <div class="card-percent" id="hadirPercentSuccess">0%</div>
+                    </div>
+                    <div class="summary-card warning">
+                        <div class="card-label">Tugas</div>
+                        <div class="card-value" id="tugasCount">0</div>
+                        <div class="card-percent" id="tugasPercentWarning">0%</div>
+                    </div>
+                    <div class="summary-card danger">
+                        <div class="card-label">Tidak Hadir</div>
+                        <div class="card-value" id="tidakCount">0</div>
+                        <div class="card-percent" id="tidakPercentDanger">0%</div>
+                    </div>
+                </div>
+
+                <div class="analytics-grid">
+                    <div class="analytics-card full-width">
+                        <h3>Ringkasan Kehadiran (Grafik)</h3>
+                        <div style="position: relative; height: 300px; margin-bottom: 20px;">
+                            <canvas id="attendanceChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="analytics-card full-width">
+                        <h3>Tren Kehadiran per Tanggal</h3>
+                        <div style="position: relative; height: 300px; margin-bottom: 20px;">
+                            <canvas id="trendChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="analytics-card">
+                        <h3>Kehadiran per Guru</h3>
+                        <div class="teacher-performance" id="teacherPerformance"></div>
+                    </div>
+                    <div class="analytics-card">
+                        <h3>Kehadiran per Kelas</h3>
+                        <div class="class-stats" id="classStats"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="files" class="content-section">
+                <div class="section-header">
+                    <h2>File Administrasi Guru</h2>
+                    <p>Monitor file yang diupload oleh guru</p>
+                </div>
+                <div class="files-overview">
+                    <div class="file-stats-grid">
+                        <div class="file-stat-card"><div class="file-stat-info"><h3 id="totalFiles">0</h3><p>Total File</p></div></div>
+                    </div>
+                    <div class="files-list" id="teacherFilesList"></div>
+                </div>
+            </section>
+
+            <section id="deep-analysis" class="content-section">
+                <div class="section-header">
+                    <h2>Analisis Mendalam</h2>
+                </div>
+                <div class="deep-analysis-filters">
+                    <div class="filter-row">
+                        <div class="filter-group"><label>Tanggal Mulai</label><input type="date" id="startDate"></div>
+                        <div class="filter-group"><label>Tanggal Akhir</label><input type="date" id="endDate"></div>
+                    </div>
+                    <div class="filter-actions">
+                        <button class="filter-btn" onclick="loadDeepAnalysis()">Analisis</button>
+                    </div>
+                </div>
+                <div id="teacherAnalysisGrid" class="teacher-analysis-grid"></div>
+            </section>
+        </main>
+    </div>
+
+    <script src="admin-dashboard.js"></script>
+</body>
+</html>

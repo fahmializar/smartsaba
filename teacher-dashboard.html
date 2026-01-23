@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Guru - Kurikulum Smansaba</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Dashboard Header -->
+    <header class="dashboard-header">
+        <div class="header-content">
+            <div class="logo">
+                <i class="fas fa-graduation-cap"></i>
+                <span>Kurikulum Smansaba</span>
+            </div>
+            <div class="user-info">
+                <span class="welcome-text">Selamat datang, <span id="teacherName">Guru</span></span>
+                <button class="logout-btn" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Dashboard Content -->
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <nav class="sidebar-nav">
+                <a href="#overview" class="nav-item active" onclick="showSection('overview')">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Overview</span>
+                </a>
+                <a href="#upload" class="nav-item" onclick="showSection('upload')">
+                    <i class="fas fa-upload"></i>
+                    <span>Upload Dokumen</span>
+                </a>
+                <a href="#files" class="nav-item" onclick="showSection('files')">
+                    <i class="fas fa-folder"></i>
+                    <span>File Saya</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Overview Section -->
+            <section id="overview" class="content-section active">
+                <div class="section-header">
+                    <h2>Dashboard Overview</h2>
+                    <p>Kelola administrasi pembelajaran Anda dengan mudah</p>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="rppCount">0</h3>
+                            <p>RPP Terupload</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-book"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="syllabusCount">0</h3>
+                            <p>Silabus Terupload</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-calendar"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="lastUpdate">-</h3>
+                            <p>Update Terakhir</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="quick-actions">
+                    <h3>Aksi Cepat</h3>
+                    <div class="action-buttons">
+                        <button class="action-btn" onclick="showSection('upload')">
+                            <i class="fas fa-plus"></i>
+                            Upload Dokumen Baru
+                        </button>
+                        <button class="action-btn" onclick="showSection('files')">
+                            <i class="fas fa-eye"></i>
+                            Lihat Semua File
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Upload Section -->
+            <section id="upload" class="content-section">
+                <div class="section-header">
+                    <h2>Upload Dokumen Administrasi</h2>
+                    <p>Upload RPP, Silabus, dan dokumen pembelajaran lainnya</p>
+                </div>
+
+                <div class="upload-container">
+                    <form id="uploadForm" class="upload-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="docType">Jenis Dokumen</label>
+                                <select id="docType" name="docType" required>
+                                    <option value="">Pilih Jenis Dokumen</option>
+                                    <option value="rpp">RPP (Rencana Pelaksanaan Pembelajaran)</option>
+                                    <option value="silabus">Silabus</option>
+                                    <option value="materi">Materi Pembelajaran</option>
+                                    <option value="evaluasi">Instrumen Evaluasi</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="subject">Mata Pelajaran</label>
+                                <input type="text" id="subject" name="subject" placeholder="Contoh: Matematika" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="grade">Kelas</label>
+                                <select id="grade" name="grade" required>
+                                    <option value="">Pilih Kelas</option>
+                                    <option value="10">Kelas 10</option>
+                                    <option value="11">Kelas 11</option>
+                                    <option value="12">Kelas 12</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="semester">Semester</label>
+                                <select id="semester" name="semester" required>
+                                    <option value="">Pilih Semester</option>
+                                    <option value="1">Semester 1</option>
+                                    <option value="2">Semester 2</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="description">Deskripsi</label>
+                            <textarea id="description" name="description" placeholder="Deskripsi singkat tentang dokumen ini" rows="3"></textarea>
+                        </div>
+
+                        <div class="file-upload-area">
+                            <div class="upload-zone" id="uploadZone">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <p>Drag & drop file di sini atau <span class="upload-link">klik untuk browse</span></p>
+                                <p class="upload-info">Format yang didukung: PDF, DOC, DOCX (Max: 10MB)</p>
+                                <input type="file" id="fileInput" name="file" accept=".pdf,.doc,.docx" hidden>
+                            </div>
+                            <div id="filePreview" class="file-preview"></div>
+                        </div>
+
+                        <button type="submit" class="btn-submit">
+                            <i class="fas fa-upload"></i>
+                            Upload Dokumen
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Files Section -->
+            <section id="files" class="content-section">
+                <div class="section-header">
+                    <h2>File Saya</h2>
+                    <p>Kelola semua dokumen administrasi yang telah diupload</p>
+                </div>
+
+                <div class="files-container">
+                    <div class="files-header">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="searchFiles" placeholder="Cari dokumen...">
+                        </div>
+                        <div class="filter-options">
+                            <select id="filterType">
+                                <option value="">Semua Jenis</option>
+                                <option value="rpp">RPP</option>
+                                <option value="silabus">Silabus</option>
+                                <option value="materi">Materi</option>
+                                <option value="evaluasi">Evaluasi</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="files-grid" id="filesGrid">
+                        <!-- Files will be populated by JavaScript -->
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="teacher-dashboard.js"></script>
+</body>
+</html>

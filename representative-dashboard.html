@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Perwakilan Kelas - SWAJAR</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --secondary: #3498db;
+            --bg-light: #f8fafc;
+            --text-dark: #1e293b;
+            --white: #ffffff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+
+        body { background-color: #f1f5f9; display: flex; min-height: 100vh; }
+
+        /* Sidebar Navigation */
+        .sidebar { width: 260px; background: var(--white); border-right: 1px solid #e2e8f0; display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 100; }
+        .sidebar-header { padding: 30px 20px; text-align: center; border-bottom: 1px solid #f1f5f9; }
+        .sidebar-header h2 { color: var(--primary); font-size: 24px; letter-spacing: 1px; }
+
+        .nav-menu { flex: 1; padding: 20px 0; }
+        .nav-item { display: flex; align-items: center; padding: 15px 25px; color: #64748b; text-decoration: none; transition: 0.3s; cursor: pointer; border-left: 4px solid transparent; }
+        .nav-item i { margin-right: 15px; width: 20px; text-align: center; }
+        .nav-item:hover, .nav-item.active { background: #f0f7ff; color: var(--secondary); border-left-color: var(--secondary); }
+
+        .logout-btn { padding: 20px 25px; color: #ef4444; border-top: 1px solid #f1f5f9; cursor: pointer; display: flex; align-items: center; text-decoration: none; }
+
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle { display: none; background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 10px; }
+
+        /* Main Content */
+        .main-content { margin-left: 260px; flex: 1; padding: 40px; }
+        .header-title { margin-bottom: 30px; }
+        .header-title h1 { color: var(--text-dark); font-size: 28px; }
+        .header-title p { color: #64748b; margin-top: 5px; }
+
+        .content-section { display: none; }
+        .content-section.active { display: block; animation: fadeIn 0.5s ease; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Cards Style */
+        .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 25px; margin-bottom: 30px; }
+        .stat-card { background: var(--white); padding: 25px; border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 20px; }
+        .stat-icon { width: 60px; height: 60px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+        
+        .card { background: var(--white); border-radius: 15px; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 30px; }
+        .card h3 { margin-bottom: 20px; color: var(--text-dark); border-left: 4px solid var(--secondary); padding-left: 15px; }
+
+        /* Form & Tabs Style */
+        .day-tabs { display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 5px; }
+        .day-tab { padding: 10px 20px; background: #e2e8f0; border-radius: 8px; cursor: pointer; font-weight: 600; white-space: nowrap; transition: 0.3s; }
+        .day-tab.active { background: var(--primary); color: white; }
+
+        button.btn-primary { background: var(--primary); color: white; border: none; padding: 12px 25px; border-radius: 10px; cursor: pointer; font-weight: 600; transition: 0.3s; }
+        button.btn-primary:hover { opacity: 0.9; transform: translateY(-2px); }
+
+        .schedule-weekly-container { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 20px; }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+
+            .mobile-menu-toggle { display: block; }
+
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: -100%;
+                width: 80%;
+                max-width: 300px;
+                height: 100vh;
+                transition: left 0.3s ease;
+                z-index: 1001;
+                box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            }
+
+            .sidebar.active { left: 0; }
+
+            .main-content {
+                margin-left: 0;
+                padding: 20px;
+                padding-top: 70px;
+            }
+
+            .header-title h1 { font-size: 20px; }
+            .header-title p { font-size: 13px; }
+
+            .card-grid { grid-template-columns: 1fr; gap: 15px; }
+            .stat-card { flex-direction: column; text-align: center; padding: 15px; gap: 10px; }
+
+            .day-tabs { gap: 5px; }
+            .day-tab { padding: 8px 12px; font-size: 12px; }
+
+            button.btn-primary { padding: 10px 15px; font-size: 13px; }
+
+            .card { padding: 15px; margin-bottom: 20px; }
+            .card h3 { font-size: 16px; margin-bottom: 15px; }
+
+            .schedule-weekly-container { flex-direction: column; }
+
+            table { font-size: 0.8em !important; }
+            table th, table td { padding: 8px !important; }
+
+            input, select { font-size: 16px !important; padding: 10px !important; }
+        }
+
+        @media (max-width: 480px) {
+            .main-content { padding: 15px; }
+
+            .header-title h1 { font-size: 18px; }
+            .card { padding: 12px; }
+            .card h3 { font-size: 15px; }
+
+            .stat-card { padding: 12px; }
+            .stat-icon { width: 50px; height: 50px; font-size: 20px; }
+
+            button.btn-primary { padding: 8px 12px; font-size: 12px; width: 100%; }
+
+            .day-tabs { gap: 5px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .day-tab { padding: 6px 10px; font-size: 11px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Mobile Header -->
+    <div style="display: none; position: fixed; top: 0; left: 0; right: 0; background: var(--primary); color: white; padding: 15px 20px; z-index: 1000; align-items: center; justify-content: space-between; height: 60px;" id="mobileHeader">
+        <span style="font-weight: 700;">SWAJAR</span>
+        <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">
+            <i class="fas fa-bars"></i>
+        </button>
+    </div>
+
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>SWAJAR</h2>
+            <p style="font-size: 11px; color: #94a3b8; margin-top: 5px;">Sistem Informasi Sekolah</p>
+        </div>
+        <nav class="nav-menu">
+            <a href="#overview" class="nav-item active" onclick="showSection('overview')">
+                <i class="fas fa-th-large"></i> Overview
+            </a>
+            <a href="#schedule" class="nav-item" onclick="showSection('schedule')">
+                <i class="fas fa-calendar-alt"></i> Atur Jadwal Kelas
+            </a>
+            <a href="#attendance" class="nav-item" onclick="showSection('attendance')">
+                <i class="fas fa-clipboard-check"></i> Laporan Kehadiran
+            </a>
+            <a href="#history" class="nav-item" onclick="showSection('history')">
+                <i class="fas fa-history"></i> Riwayat Laporan
+            </a>
+        </nav>
+        <div class="logout-btn" onclick="logout()">
+            <i class="fas fa-sign-out-alt"></i> <span style="margin-left: 15px; font-weight: 600;">Logout</span>
+        </div>
+    </div>
+
+    <div class="main-content">
+        
+        <section id="overview" class="content-section active">
+            <div class="header-title">
+                <h1>Dashboard Overview</h1>
+                <p>Monitor dan laporkan kehadiran guru di kelas Anda</p>
+            </div>
+            <div class="card-grid">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background: #f0f9ff; color: #0284c7;"><i class="fas fa-user-graduate"></i></div>
+                    <div>
+                        <h2 id="className">Memuat...</h2>
+                        <p style="color: #64748b; font-size: 13px;">Kelas Anda</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Jadwal Pelajaran</h3>
+                <div id="allScheduleList">
+                    <p style="text-align: center; color: #94a3b8; padding: 20px;">Memuat seluruh jadwal...</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="schedule" class="content-section">
+            <div class="header-title">
+                <h1>Atur Jadwal Kelas</h1>
+                <p>Input jadwal pelajaran mingguan kelas Anda</p>
+            </div>
+            <div class="card">
+                <div class="day-tabs">
+                    <div class="day-tab active" onclick="switchDay('Senin')">Senin</div>
+                    <div class="day-tab" onclick="switchDay('Selasa')">Selasa</div>
+                    <div class="day-tab" onclick="switchDay('Rabu')">Rabu</div>
+                    <div class="day-tab" onclick="switchDay('Kamis')">Kamis</div>
+                    <div class="day-tab" onclick="switchDay('Jumat')">Jumat</div>
+                </div>
+                <form id="scheduleForm">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h4 style="color: var(--text-dark);">Input Jadwal: <span id="currentDayName">Senin</span></h4>
+                        <button type="button" class="btn-primary" onclick="addScheduleSubject()" style="background: #10b981; padding: 8px 15px; font-size: 13px;">
+                            <i class="fas fa-plus"></i> Tambah Mapel
+                        </button>
+                    </div>
+                    <div id="subjectsList"></div>
+                    <div style="margin-top: 20px; text-align: right;">
+                        <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Simpan Jadwal</button>
+                    </div>
+                </form>
+            </div>
+            <div class="card">
+                <h3>Jadwal Terdaftar</h3>
+                <div id="scheduleWeek" class="schedule-weekly-container"></div>
+            </div>
+        </section>
+
+        <section id="attendance" class="content-section">
+            <div class="header-title">
+                <h1>Laporan Kehadiran</h1>
+                <p>Laporkan kehadiran guru pada hari ini</p>
+            </div>
+            <div class="card">
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px;">Tanggal Laporan</label>
+                    <input type="date" id="reportDate" style="padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; width: 100%; max-width: 300px;" onchange="loadTodaySchedule(this.value)">
+                </div>
+                <div id="todaySubjectsGrid"></div>
+                <div style="text-align: right; margin-top: 20px;">
+                    <button class="btn-primary" onclick="submitAttendanceReport()">
+                        <i class="fas fa-paper-plane"></i> Kirim Laporan
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section id="history" class="content-section">
+            <div class="header-title">
+                <h1>Riwayat Laporan</h1>
+                <p>Daftar laporan yang telah dikirimkan</p>
+            </div>
+            <div class="card" id="historyList">
+                <p style="text-align: center; color: #94a3b8; padding: 20px;">Memuat data riwayat...</p>
+            </div>
+            <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+                <button class="btn-primary" onclick="deleteAllHistory()" style="background: #ef4444; padding: 10px 20px; border-radius: 8px;">
+                    <i class="fas fa-trash"></i> Hapus Semua Riwayat
+                </button>
+                <button class="btn-primary" onclick="showSection('overview')" style="background: #3498db;">
+                    <i class="fas fa-arrow-left"></i> Kembali
+                </button>
+            </div>
+        </section>
+
+    </div>
+
+    <script src="representative-dashboard.js"></script>
+    <script>
+        document.getElementById('reportDate').valueAsDate = new Date();
+    </script>
+</body>
+</html>

@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dokumen Digital Kurikulum - Kurikulum Smansaba</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .curriculum-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .curriculum-header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px 0;
+        }
+
+        .curriculum-header h1 {
+            font-size: 2.5em;
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .curriculum-header p {
+            font-size: 1.1em;
+            color: #7f8c8d;
+        }
+
+        .search-container {
+            margin-bottom: 30px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .documents-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+
+        .document-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            transition: transform 0.3s, box-shadow 0.3s;
+            border-left: 4px solid #3498db;
+        }
+
+        .document-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .document-header {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 80px;
+        }
+
+        .document-icon {
+            font-size: 2.5em;
+        }
+
+        .document-body {
+            padding: 20px;
+        }
+
+        .document-name {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            word-break: break-word;
+        }
+
+        .document-info {
+            font-size: 0.9em;
+            color: #7f8c8d;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .document-size {
+            color: #95a5a6;
+            font-size: 0.85em;
+        }
+
+        .document-actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-download {
+            flex: 1;
+            padding: 10px;
+            background: #27ae60;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.95em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            transition: background 0.3s;
+            text-decoration: none;
+        }
+
+        .btn-download:hover {
+            background: #229954;
+        }
+
+        .btn-preview {
+            flex: 1;
+            padding: 10px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.95em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            transition: background 0.3s;
+        }
+
+        .btn-preview:hover {
+            background: #2980b9;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.1em;
+            color: #7f8c8d;
+        }
+
+        .loading i {
+            font-size: 2em;
+            margin-bottom: 10px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .no-documents {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+
+        .no-documents i {
+            font-size: 3em;
+            margin-bottom: 10px;
+            color: #bdc3c7;
+        }
+
+        .breadcrumb {
+            margin-bottom: 20px;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .breadcrumb a {
+            color: #3498db;
+            text-decoration: none;
+            margin-right: 10px;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .breadcrumb span {
+            color: #7f8c8d;
+        }
+
+        .filter-buttons {
+            margin-bottom: 25px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 8px 15px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.95em;
+        }
+
+        .filter-btn:hover,
+        .filter-btn.active {
+            border-color: #3498db;
+            background: #3498db;
+            color: white;
+        }
+
+        .stats {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-item i {
+            font-size: 1.5em;
+            color: #3498db;
+        }
+
+        .stat-item span {
+            font-size: 0.95em;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .curriculum-container {
+                padding: 20px 10px;
+            }
+
+            .curriculum-header h1 {
+                font-size: 1.8em;
+            }
+
+            .documents-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .search-container {
+                flex-direction: column;
+            }
+
+            .search-input {
+                width: 100%;
+            }
+
+            .filter-buttons {
+                flex-direction: column;
+            }
+
+            .filter-btn {
+                width: 100%;
+            }
+
+            .stats {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .document-actions {
+                flex-direction: column;
+            }
+
+            .btn-download,
+            .btn-preview {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <i class="fas fa-graduation-cap"></i>
+                <span>Kurikulum Smansaba</span>
+            </div>
+            <div class="nav-menu">
+                <a href="index.html" class="nav-link">Beranda</a>
+                <a href="index.html#programs" class="nav-link">Program</a>
+                <a href="curriculum-documents.html" class="nav-link active" style="font-weight: bold;">Dokumen Digital Kurikulum</a>
+                <button class="login-btn" onclick="openLoginModal()">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="curriculum-container">
+        <div class="breadcrumb">
+            <a href="index.html"><i class="fas fa-home"></i> Beranda</a>
+            <span>/</span>
+            <span>Dokumen Digital Kurikulum</span>
+        </div>
+
+        <div class="curriculum-header">
+            <h1><i class="fas fa-file-pdf"></i> Dokumen Digital Kurikulum</h1>
+            <p>Akses lengkap semua dokumen kurikulum yang dapat diunduh dalam format PDF</p>
+        </div>
+
+        <div class="stats" id="statsContainer">
+            <div class="stat-item">
+                <i class="fas fa-file"></i>
+                <span id="totalDocuments">Memuat...</span>
+            </div>
+            <div class="stat-item">
+                <i class="fas fa-sync"></i>
+                <span>Diperbarui secara otomatis dari Google Drive</span>
+            </div>
+        </div>
+
+        <div class="search-container">
+            <input 
+                type="text" 
+                class="search-input" 
+                id="searchInput" 
+                placeholder="Cari dokumen kurikulum...">
+            <button onclick="clearSearch()" class="btn-search" style="padding: 10px 15px; border: 2px solid #e0e0e0; background: white; border-radius: 8px; cursor: pointer;">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="filter-buttons">
+            <button class="filter-btn active" onclick="filterDocuments('all')">
+                <i class="fas fa-list"></i> Semua
+            </button>
+            <button class="filter-btn" onclick="filterDocuments('latest')">
+                <i class="fas fa-clock"></i> Terbaru
+            </button>
+            <button class="filter-btn" onclick="filterDocuments('a-z')">
+                <i class="fas fa-sort-alpha-down"></i> A-Z
+            </button>
+        </div>
+
+        <div id="documentsContainer" class="documents-grid">
+            <div class="loading">
+                <i class="fas fa-spinner"></i>
+                <p>Memuat dokumen dari Google Drive...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Kurikulum Smansaba</h3>
+                    <p>Sistem manajemen sekolah untuk mendukung pembelajaran yang efektif</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Kontak</h4>
+                    <p><i class="fas fa-envelope"></i> info@smansaba.sch.id</p>
+                    <p><i class="fas fa-phone"></i> (021) 123-4567</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 Kurikulum Smansaba. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Preview Modal -->
+    <div id="previewModal" class="modal">
+        <div class="modal-content" style="width: 90%; max-width: 900px; height: 80vh;">
+            <span class="close" onclick="closePreviewModal()">&times;</span>
+            <div style="width: 100%; height: 100%; display: flex; flex-direction: column;">
+                <div style="background: #f8f9fa; padding: 15px; border-bottom: 1px solid #e0e0e0;">
+                    <h3 id="previewTitle">Preview Dokumen</h3>
+                </div>
+                <iframe id="previewFrame" style="flex: 1; border: none; width: 100%;"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const FOLDER_ID = '1ZeQnYBcQqJZ3_E2FRU9igtKdtknCm9gO';
+        let allDocuments = [];
+        let filteredDocuments = [];
+
+        // Format bytes to readable size
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        // Fetch documents from backend API
+        async function loadDocuments() {
+            try {
+                const response = await fetch('/api/curriculum-documents');
+                const data = await response.json();
+                
+                if (data.success) {
+                    allDocuments = data.documents.sort((a, b) => {
+                        return new Date(b.createdTime) - new Date(a.createdTime);
+                    });
+                    filteredDocuments = [...allDocuments];
+                    renderDocuments();
+                    updateStats();
+                } else {
+                    showError('Gagal memuat dokumen: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error loading documents:', error);
+                showError('Gagal terhubung ke server. Pastikan server berjalan.');
+            }
+        }
+
+        // Render documents
+        function renderDocuments() {
+            const container = document.getElementById('documentsContainer');
+            
+            if (filteredDocuments.length === 0) {
+                container.innerHTML = `
+                    <div class="no-documents" style="grid-column: 1/-1;">
+                        <i class="fas fa-folder-open"></i>
+                        <h3>Tidak ada dokumen</h3>
+                        <p>Tidak ada dokumen yang sesuai dengan pencarian Anda</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filteredDocuments.map((doc, index) => `
+                <div class="document-card">
+                    <div class="document-header">
+                        <div class="document-icon">
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+                    </div>
+                    <div class="document-body">
+                        <div class="document-name">${doc.name}</div>
+                        <div class="document-info">
+                            <i class="fas fa-calendar"></i>
+                            ${new Date(doc.createdTime).toLocaleDateString('id-ID')}
+                        </div>
+                        <div class="document-size">
+                            <i class="fas fa-database"></i> ${formatBytes(doc.size)}
+                        </div>
+                        <div class="document-actions">
+                            <a href="${doc.webViewLink}" target="_blank" class="btn-download">
+                                <i class="fas fa-download"></i> Download
+                            </a>
+                            <button class="btn-preview" onclick="previewDocument('${doc.webViewLink}', '${doc.name.replace(/'/g, "\\'")}')">
+                                <i class="fas fa-eye"></i> Pratinjau
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Search documents
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            filteredDocuments = allDocuments.filter(doc => 
+                doc.name.toLowerCase().includes(query)
+            );
+            renderDocuments();
+            updateStats();
+        });
+
+        // Filter documents
+        function filterDocuments(type) {
+            // Update button state
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.closest('.filter-btn').classList.add('active');
+
+            const searchQuery = document.getElementById('searchInput').value.toLowerCase();
+            let filtered = allDocuments.filter(doc => 
+                doc.name.toLowerCase().includes(searchQuery)
+            );
+
+            if (type === 'latest') {
+                filtered.sort((a, b) => new Date(b.createdTime) - new Date(a.createdTime));
+            } else if (type === 'a-z') {
+                filtered.sort((a, b) => a.name.localeCompare(b.name));
+            }
+
+            filteredDocuments = filtered;
+            renderDocuments();
+        }
+
+        // Clear search
+        function clearSearch() {
+            document.getElementById('searchInput').value = '';
+            filteredDocuments = [...allDocuments];
+            renderDocuments();
+            updateStats();
+        }
+
+        // Preview document
+        function previewDocument(viewLink, name) {
+            document.getElementById('previewTitle').textContent = 'Pratinjau: ' + name;
+            document.getElementById('previewFrame').src = viewLink;
+            document.getElementById('previewModal').style.display = 'block';
+        }
+
+        // Close preview modal
+        function closePreviewModal() {
+            document.getElementById('previewModal').style.display = 'none';
+            document.getElementById('previewFrame').src = '';
+        }
+
+        // Update stats
+        function updateStats() {
+            document.getElementById('totalDocuments').textContent = 
+                `${filteredDocuments.length} Dokumen`;
+        }
+
+        // Show error
+        function showError(message) {
+            const container = document.getElementById('documentsContainer');
+            container.innerHTML = `
+                <div class="no-documents" style="grid-column: 1/-1; color: #e74c3c;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <h3>Kesalahan</h3>
+                    <p>${message}</p>
+                    <button onclick="location.reload()" style="margin-top: 10px; padding: 10px 20px; background: #e74c3c; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        <i class="fas fa-refresh"></i> Coba Lagi
+                    </button>
+                </div>
+            `;
+        }
+
+        // Open login modal
+        function openLoginModal() {
+            document.getElementById('loginModal').style.display = 'block';
+        }
+
+        // Close preview on outside click
+        window.onclick = function(event) {
+            const previewModal = document.getElementById('previewModal');
+            if (event.target === previewModal) {
+                closePreviewModal();
+            }
+        }
+
+        // Load documents on page load
+        window.addEventListener('load', loadDocuments);
+
+        // Refresh documents every 5 minutes
+        setInterval(loadDocuments, 5 * 60 * 1000);
+    </script>
+
+    <script src="script.js"></script>
+</body>
+</html>

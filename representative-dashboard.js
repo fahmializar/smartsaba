@@ -1,0 +1,429 @@
+// --- VARIABEL GLOBAL DAN DATA ---
+const API_BASE = 'http://localhost:3000/api';
+let classSchedule = {}; 
+let SCHOOL_SUBJECTS = [];
+let SCHOOL_TEACHERS = [];
+
+const CLASS_PERIODS = [
+    { period: 1, time: '06:30-07:15', label: 'Jam 1 (06:30-07:15)' },
+    { period: 2, time: '07:15-08:00', label: 'Jam 2 (07:15-08:00)' },
+    { period: 3, time: '08:00-08:45', label: 'Jam 3 (08:00-08:45)' },
+    { period: 4, time: '08:45-09:30', label: 'Jam 4 (08:45-09:30)' },
+    { period: 5, time: '09:45-10:30', label: 'Jam 5 (09:45-10:30)' },
+    { period: 6, time: '10:30-11:15', label: 'Jam 6 (10:30-11:15)' },
+    { period: 7, time: '11:15-12:00', label: 'Jam 7 (11:15-12:00)' },
+    { period: 8, time: '12:45-13:30', label: 'Jam 8 (12:45-13:30)' },
+    { period: 9, time: '13:30-14:15', label: 'Jam 9 (13:30-14:15)' },
+    { period: 10, time: '14:15-15:00', label: 'Jam 10 (14:15-15:00)' }
+];
+
+// --- FUNGSI INISIALISASI ---
+function checkAuth() {
+    const isLoggedIn = localStorage.getItem('isLoggedIn');
+    const userRole = localStorage.getItem('userRole');
+    if (isLoggedIn !== 'true' || userRole !== 'representative') {
+        window.location.href = 'index.html';
+    }
+}
+
+// Mobile menu toggle
+function toggleMobileMenu() {
+    const sidebar = document.querySelector('.sidebar');
+    sidebar.classList.toggle('active');
+}
+
+// Close mobile menu when clicking a navigation item
+function closeMobileMenuOnNavClick() {
+    const sidebar = document.querySelector('.sidebar');
+    if (window.innerWidth <= 768) {
+        sidebar.classList.remove('active');
+    }
+}
+
+// Setup mobile responsiveness
+function setupMobileResponsiveness() {
+    const mobileHeader = document.getElementById('mobileHeader');
+    if (window.innerWidth <= 768) {
+        if (mobileHeader) mobileHeader.style.display = 'flex';
+    } else {
+        if (mobileHeader) mobileHeader.style.display = 'none';
+    }
+}
+
+// Update on resize
+window.addEventListener('resize', setupMobileResponsiveness);
+
+// Fetch dynamic data from database
+async function loadDynamicData() {
+    try {
+        const [subjectsRes, teachersRes] = await Promise.all([
+            fetch(`${API_BASE}/subjects`),
+            fetch(`${API_BASE}/teachers`)
+        ]);
+        
+        SCHOOL_SUBJECTS = await subjectsRes.json();
+        SCHOOL_TEACHERS = (await teachersRes.json()).map(t => t.teacher_name);
+    } catch (err) {
+        console.error('Error loading dynamic data:', err);
+    }
+}
+
+async function initializeDashboard() {
+    checkAuth();
+    setupMobileResponsiveness();
+    await loadDynamicData();
+    const className = localStorage.getItem('username'); 
+    const classDisplay = document.getElementById('className');
+    if (classDisplay) classDisplay.textContent = className;
+    await loadClassSchedule();
+    await loadAttendanceHistory(); 
+}
+
+async function loadClassSchedule() {
+    const className = localStorage.getItem('username');
+    try {
+        const response = await fetch(`${API_BASE}/class-schedules/${encodeURIComponent(className)}`);
+        const schedules = await response.json();
+        
+        classSchedule = {}; 
+        if (Array.isArray(schedules)) {
+            schedules.forEach(s => {
+                if (!classSchedule[s.day]) classSchedule[s.day] = [];
+                classSchedule[s.day].push({
+                    id: s.id,
+                    subjectName: s.subject,
+                    teacherName: s.teacher_name,
+                    startTime: s.start_time,
+                    endTime: s.end_time
+                });
+            });
+        }
+        updateOverviewSchedule(); 
+        updateWeeklyScheduleDisplay();
+        const reportDateInput = document.getElementById('reportDate');
+        if (reportDateInput) loadTodaySchedule(reportDateInput.value);
+    } catch (error) {
+        console.error('Error loading schedule:', error);
+    }
+}
+
+// --- TAMPILAN OVERVIEW ---
+function updateOverviewSchedule() {
+    const overviewContainer = document.getElementById('allScheduleList');
+    if (!overviewContainer) return;
+    const daysToDisplay = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
+    let html = '';
+    daysToDisplay.forEach(day => {
+        const dayData = classSchedule[day] || [];
+        html += `<div style="font-size: 0.85em; color: var(--primary); margin: 20px 0 10px 0; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; border-left: 4px solid var(--secondary); padding-left: 10px; background: #f8fafc;">${day}</div>`;
+        if (dayData.length === 0) {
+            html += `<p style="font-size: 0.8em; color: #94a3b8; padding-left: 15px; margin-bottom: 10px;">Belum ada jadwal.</p>`;
+        } else {
+            dayData.sort((a, b) => a.startTime.localeCompare(b.startTime));
+            dayData.forEach(s => {
+                html += `<div style="display: flex; align-items: center; justify-content: space-between; background: #ffffff; padding: 12px 15px; margin-bottom: 8px; border-radius: 10px; border: 1px solid #e2e8f0; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                        <div><span style="font-weight: 700; color: #1e293b; font-size: 0.9em; display:block;">${s.subjectName}</span><span style="font-size: 0.75em; color: #64748b;">${s.teacherName}</span></div>
+                        <div style="background: #f0f7ff; color: #3498db; padding: 4px 10px; border-radius: 6px; font-size: 0.8em; font-weight: 700; border: 1px solid #cce3f5;">${s.startTime} - ${s.endTime}</div>
+                    </div>`;
+            });
+        }
+    });
+    overviewContainer.innerHTML = html;
+}
+
+// --- FUNGSI LAPOR KEHADIRAN ---
+function loadTodaySchedule(dateString) {
+    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const dayName = days[new Date(dateString).getDay()];
+    const container = document.getElementById('todaySubjectsGrid');
+    const todaySubjects = classSchedule[dayName] || [];
+    if (!container) return;
+    container.innerHTML = ''; 
+    if (todaySubjects.length === 0) {
+        container.innerHTML = '<p style="text-align:center; padding:20px; color:#94a3b8;">Tidak ada jadwal presensi hari ini.</p>';
+        return;
+    }
+    todaySubjects.forEach((s, idx) => {
+        const card = document.createElement('div');
+        card.dataset.subject = s.subjectName;
+        card.dataset.teacher = s.teacherName;
+        card.dataset.start = s.startTime;
+        card.dataset.end = s.endTime;
+
+        card.style.cssText = "display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 12px; border: 1px solid #e2e8f0;";
+        card.innerHTML = `<div><h4 style="margin: 0; color: #1e293b; font-size: 0.95em;">${s.subjectName}</h4><p style="margin: 2px 0 0 0; font-size: 0.75em; color: #64748b;">${s.teacherName}</p></div>
+            <div style="display: flex; gap: 8px;">
+                <label style="cursor: pointer;"><input type="radio" name="status_${idx}" value="Hadir" required style="display:none;" onchange="updateButtonStyle(this)"><span class="btn-att" style="display:inline-block; padding: 6px 12px; border-radius: 6px; border: 1.5px solid #10b981; color: #10b981; font-weight: 700; font-size: 0.8em;">Hadir</span></label>
+                <label style="cursor: pointer;"><input type="radio" name="status_${idx}" value="Tugas" style="display:none;" onchange="updateButtonStyle(this)"><span class="btn-att" style="display:inline-block; padding: 6px 12px; border-radius: 6px; border: 1.5px solid #f59e0b; color: #f59e0b; font-weight: 700; font-size: 0.8em;">Tugas</span></label>
+                <label style="cursor: pointer;"><input type="radio" name="status_${idx}" value="Kosong" style="display:none;" onchange="updateButtonStyle(this)"><span class="btn-att" style="display:inline-block; padding: 6px 12px; border-radius: 6px; border: 1.5px solid #ef4444; color: #ef4444; font-weight: 700; font-size: 0.8em;">Kosong</span></label>
+            </div>`;
+        container.appendChild(card);
+    });
+}
+
+window.updateButtonStyle = function(input) {
+    const parent = input.closest('div');
+    parent.querySelectorAll('.btn-att').forEach(span => {
+        span.style.background = 'transparent';
+        span.style.color = span.style.borderColor;
+    });
+    const selectedSpan = input.nextElementSibling;
+    selectedSpan.style.background = selectedSpan.style.borderColor;
+    selectedSpan.style.color = "#fff";
+};
+
+// --- PENGIRIMAN DAN RIWAYAT ---
+async function submitAttendanceReport() {
+    const dateInput = document.getElementById('reportDate');
+    if (!dateInput) return;
+    
+    const date = dateInput.value;
+    const className = localStorage.getItem('username') || 'Unknown';
+    const cards = document.querySelectorAll('#todaySubjectsGrid > div');
+    const attendance = [];
+    let allSelected = true;
+
+    cards.forEach((card, idx) => {
+        const radio = card.querySelector(`input[name="status_${idx}"]:checked`);
+        if (!radio) { allSelected = false; return; }
+        
+        attendance.push({ 
+            name: card.dataset.subject, 
+            teacher: card.dataset.teacher,
+            startTime: card.dataset.start,
+            endTime: card.dataset.end,
+            attendance: radio.value.toLowerCase() 
+        });
+    });
+
+    if (!allSelected || attendance.length === 0) return alert("Mohon pilih status untuk semua mata pelajaran!");
+
+    // Objek Laporan untuk LocalStorage (Dashboard Admin)
+    const localReport = {
+        id: Date.now(),
+        className: className,
+        date: date,
+        submittedBy: className,
+        createdAt: new Date().toISOString(),
+        subjects: attendance,
+        notes: ""
+    };
+
+    try {
+        // --- PERBAIKAN: Simpan ke LocalStorage agar Admin bisa baca ---
+        const existingReports = JSON.parse(localStorage.getItem('allReports')) || [];
+        existingReports.push(localReport);
+        localStorage.setItem('allReports', JSON.stringify(existingReports));
+        console.log("Data berhasil disimpan ke LocalStorage allReports");
+
+        // 2. Kirim ke Server
+        const res = await fetch(`${API_BASE}/submit-attendance`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ class_name: className, date, attendance })
+        });
+        
+        const result = await res.json();
+        if (result.success) {
+            alert("Laporan berhasil dikirim!");
+            await loadAttendanceHistory(); 
+            showSection('history'); 
+        } else {
+            alert("Laporan tersimpan di lokal browser.");
+        }
+    } catch (err) { 
+        console.error(err);
+        alert("Server offline. Laporan tersimpan secara lokal di browser."); 
+        showSection('history');
+    }
+}
+
+async function loadAttendanceHistory() {
+    const className = localStorage.getItem('username');
+    const historyList = document.getElementById('historyList'); 
+    if (!historyList || !className) return;
+
+    try {
+        const response = await fetch(`${API_BASE}/attendance-history/${encodeURIComponent(className)}`);
+        if (!response.ok) throw new Error('Gagal fetch riwayat');
+        const history = await response.json();
+        
+        historyList.innerHTML = ''; 
+
+        if (!Array.isArray(history) || history.length === 0) {
+            historyList.innerHTML = '<p style="text-align:center; padding:20px; color:#94a3b8;">Belum ada riwayat laporan.</p>';
+            return;
+        }
+
+        let html = `
+            <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; font-size: 0.9em;">
+                <thead style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+                    <tr>
+                        <th style="padding: 12px; text-align: left;">Tanggal</th>
+                        <th style="padding: 12px; text-align: left;">Mata Pelajaran</th>
+                        <th style="padding: 12px; text-align: center;">Status</th>
+                        <th style="padding: 12px; text-align: center;">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+        history.forEach(item => {
+            const statusColor = item.status === 'Hadir' ? '#10b981' : (item.status === 'Tugas' ? '#f59e0b' : '#ef4444');
+            html += `
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 12px;">${item.report_date}</td>
+                    <td style="padding: 12px; font-weight: 600;">${item.subject}</td>
+                    <td style="padding: 12px; text-align: center;">
+                        <span style="background: ${statusColor}; color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.8em; font-weight: bold; display: inline-block; min-width: 60px;">${item.status}</span>
+                    </td>
+                    <td style="padding: 12px; text-align: center;">
+                        <button onclick="deleteHistoryItem(${item.id})" style="background: #fee2e2; color: #dc2626; border: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 0.8em; font-weight: 600;">
+                            <i class="fas fa-trash-alt"></i> Hapus
+                        </button>
+                    </td>
+                </tr>`;
+        });
+
+        html += `</tbody></table></div>`;
+        historyList.innerHTML = html;
+    } catch (error) {
+        console.error('Gagal memuat history:', error);
+        historyList.innerHTML = '<p style="text-align:center; padding:20px; color:red;">Gagal memuat riwayat dari server.</p>';
+    }
+}
+
+// Delete single history item
+async function deleteHistoryItem(id) {
+    if (!confirm('Yakin ingin menghapus laporan ini?')) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/delete-attendance/${id}`, { method: 'DELETE' });
+        if (response.ok) {
+            alert('Laporan berhasil dihapus');
+            await loadAttendanceHistory();
+        } else {
+            alert('Gagal menghapus laporan');
+        }
+    } catch (error) {
+        console.error('Error deleting history item:', error);
+        alert('Gagal menghapus laporan');
+    }
+}
+
+// Delete all history for current class
+async function deleteAllHistory() {
+    if (!confirm('⚠️ PERINGATAN: Semua riwayat laporan akan dihapus permanen. Lanjutkan?')) return;
+    if (!confirm('Yakin? Tindakan ini tidak dapat dibatalkan!')) return;
+    
+    const className = localStorage.getItem('username');
+    try {
+        const response = await fetch(`${API_BASE}/delete-all-attendance/${encodeURIComponent(className)}`, { method: 'DELETE' });
+        if (response.ok) {
+            alert('Semua riwayat berhasil dihapus');
+            await loadAttendanceHistory();
+        } else {
+            alert('Gagal menghapus semua riwayat');
+        }
+    } catch (error) {
+        console.error('Error deleting all history:', error);
+        alert('Gagal menghapus semua riwayat');
+    }
+}
+
+// --- MANAJEMEN JADWAL ---
+function switchDay(day) {
+    document.getElementById('currentDayName').textContent = day;
+    document.querySelectorAll('.day-tab').forEach(t => t.classList.toggle('active', t.textContent.trim() === day));
+    document.getElementById('subjectsList').innerHTML = '';
+}
+
+function addScheduleSubject() {
+    const container = document.getElementById('subjectsList');
+    const div = document.createElement('div');
+    div.className = 'schedule-subject-item';
+    div.style.cssText = "margin-bottom:15px; padding:15px; border:1px solid #eee; border-radius:10px; position:relative; background:#fff;";
+    div.innerHTML = `
+        <button type="button" onclick="this.parentElement.remove()" style="position:absolute; top:5px; right:5px; border:none; background:none; color:red; cursor:pointer; font-size:18px;">&times;</button>
+        <select class="subject-dropdown" required style="width:100%; padding:10px; margin-bottom:8px; border-radius:5px; border:1px solid #ccc;">
+            <option value="">Pilih Mata Pelajaran</option>${SCHOOL_SUBJECTS.map(s => `<option value="${s.name}">${s.name}</option>`).join('')}
+        </select>
+        <select class="teacher-dropdown" required style="width:100%; padding:10px; margin-bottom:8px; border-radius:5px; border:1px solid #ccc;">
+            <option value="">Pilih Guru</option>${SCHOOL_TEACHERS.map(t => `<option value="${t}">${t}</option>`).join('')}
+        </select>
+        <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:8px; border-top:1px dashed #eee; padding-top:10px;">
+            ${CLASS_PERIODS.map(p => `<label style="font-size:11px; display:flex; align-items:center; gap:5px;"><input type="checkbox" class="period-checkbox" value="${p.period}"> ${p.label}</label>`).join('')}
+        </div>`;
+    container.appendChild(div);
+}
+
+async function handleScheduleSubmit(e) {
+    e.preventDefault();
+    const className = localStorage.getItem('username');
+    const day = document.getElementById('currentDayName').textContent;
+    const items = document.querySelectorAll('.schedule-subject-item');
+    const schedules = [];
+    items.forEach(item => {
+        const subject = item.querySelector('.subject-dropdown').value;
+        const teacher = item.querySelector('.teacher-dropdown').value;
+        const periods = Array.from(item.querySelectorAll('.period-checkbox:checked')).map(cb => parseInt(cb.value));
+        if (subject && teacher && periods.length > 0) {
+            periods.sort((a,b) => a-b);
+            const start = CLASS_PERIODS.find(p => p.period === periods[0]).time.split('-')[0];
+            const end = CLASS_PERIODS.find(p => p.period === periods[periods.length-1]).time.split('-')[1];
+            schedules.push({ day, subject, teacher_name: teacher, start_time: start.trim(), end_time: end.trim() });
+        }
+    });
+    if (schedules.length === 0) return alert("Pilih Mapel, Guru, dan Jam!");
+    try {
+        const res = await fetch(`${API_BASE}/save-schedule`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ class_name: className, schedules })
+        });
+        if ((await res.json()).success) {
+            alert("Jadwal disimpan!");
+            document.getElementById('subjectsList').innerHTML = '';
+            await loadClassSchedule();
+        }
+    } catch (err) { alert("Gagal menyimpan."); }
+}
+
+function updateWeeklyScheduleDisplay() {
+    const container = document.getElementById('scheduleWeek');
+    if (!container) return;
+    const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
+    container.innerHTML = days.map(day => `<div style="flex:1; min-width:160px; border:1px solid #e2e8f0; padding:10px; border-radius:10px; background:#fff;">
+            <div style="border-bottom:2px solid #3498db; padding-bottom:5px; margin-bottom:10px; font-weight:bold; color:#1e3a8a; font-size:12px;">${day}</div>
+            ${(classSchedule[day] || []).map(s => `<div style="font-size:10px; margin-bottom:8px; padding:5px; background:#f8fafc; border-radius:4px; border:1px solid #edf2f7;"><strong>${s.subjectName}</strong><br><span style="color:#3498db;">${s.startTime}-${s.endTime}</span></div>`).join('')}
+        </div>`).join('');
+}
+
+// --- UTILS ---
+function showSection(id) {
+    const section = document.getElementById(id);
+    if (!section) return; 
+    document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+    section.classList.add('active');
+    closeMobileMenuOnNavClick();
+    
+    if (id === 'history') loadAttendanceHistory();
+    if (id === 'overview') updateOverviewSchedule();
+
+    document.querySelectorAll('.nav-item').forEach(n => {
+        const href = n.getAttribute('href');
+        const onclick = n.getAttribute('onclick');
+        const isMatch = (href && href.includes(id)) || (onclick && onclick.includes(id));
+        n.classList.toggle('active', !!isMatch);
+    });
+}
+
+function logout() {
+    if (confirm("Logout dari sistem?")) {
+        localStorage.clear();
+        window.location.href = 'index.html';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', initializeDashboard);
+document.getElementById('scheduleForm')?.addEventListener('submit', handleScheduleSubmit);
