@@ -19,6 +19,13 @@ app.use((req, res, next) => {
 });
 app.use(express.static(path.join(__dirname)));
 
+// Check if DATABASE_URL is set
+if (!process.env.DATABASE_URL) {
+    console.error('❌ ERROR: DATABASE_URL environment variable is not set!');
+    console.error('Please set the DATABASE_URL environment variable on your hosting platform.');
+    process.exit(1);
+}
+
 // 1. PostgreSQL Neon Connection
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -158,49 +165,47 @@ async function seedDatabase() {
                 ['admin', 'admin123', 'admin']
             );
             console.log('✓ Admin user created');
-
-            // Insert subjects
-            for (const subject of schoolData.subjects) {
-                await pool.query(
-                    'INSERT INTO subjects (code, name) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-                    [subject.code, subject.name]
-                );
-            }
-            console.log('✓ Subjects created');
-
-            // Insert teachers
-            for (const teacher of schoolData.teachers) {
-                await pool.query(
-                    'INSERT INTO teachers (teacher_name) VALUES ($1) ON CONFLICT DO NOTHING',
-                    [teacher]
-                );
-            }
-            console.log('✓ Teachers created');
-
-            // Insert time slots
-            for (const slot of schoolData.time_slots) {
-                await pool.query(
-                    'INSERT INTO time_slots (period, label, start_time, end_time) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING',
-                    [slot.period, slot.label, slot.start_time, slot.end_time]
-                );
-            }
-            console.log('✓ Time slots created');
-
-            // Insert classes and create class representatives
-            for (const cls of schoolData.classes) {
-                await pool.query(
-                    'INSERT INTO classes (class_name, grade, section) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
-                    [cls.class_name, cls.grade, cls.section]
-                );
-                await pool.query(
-                    'INSERT INTO users (username, password, role) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
-                    [cls.class_name, 'berhias', 'representative']
-                );
-            }
-            console.log('✓ Classes and representatives created');
-        } else {
-            console.log('✓ Database already seeded');
         }
+
+        // Always insert subjects (using ON CONFLICT DO NOTHING to avoid errors if already exists)
+        for (const subject of schoolData.subjects) {
+            await pool.query(
+                'INSERT INTO subjects (code, name) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+                [subject.code, subject.name]
+            );
+        }
+        console.log('✓ Subjects created/verified');
+
+        // Always insert teachers
+        for (const teacher of schoolData.teachers) {
+            await pool.query(
+                'INSERT INTO teachers (teacher_name) VALUES ($1) ON CONFLICT DO NOTHING',
+                [teacher]
+            );
+        }
+        console.log('✓ Teachers created/verified');
+
+        // Always insert time slots
+        for (const slot of schoolData.time_slots) {
+            await pool.query(
+                'INSERT INTO time_slots (period, label, start_time, end_time) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING',
+                [slot.period, slot.label, slot.start_time, slot.end_time]
+            );
+        }
+        console.log('✓ Time slots created/verified');
+
+        // Always insert classes and create class representatives
+        for (const cls of schoolData.classes) {
+            await pool.query(
+                'INSERT INTO classes (class_name, grade, section) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+                [cls.class_name, cls.grade, cls.section]
+            );
+            await pool.query(
+                'INSERT INTO users (username, password, role) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+                [cls.class_name, 'berhias', 'representative']
+            );
+        }
+        console.log('✓ Classes and representatives created/verified');
     } catch (err) {
         console.error('Error seeding database:', err);
     }
