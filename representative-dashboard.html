@@ -130,11 +130,16 @@
 <body>
 
     <!-- Mobile Header -->
-    <div style="display: none; position: fixed; top: 0; left: 0; right: 0; background: var(--primary); color: white; padding: 15px 20px; z-index: 1000; align-items: center; justify-content: space-between; height: 60px;" id="mobileHeader">
-        <span style="font-weight: 700;">SWAJAR</span>
-        <button class="mobile-menu-toggle" onclick="toggleMobileMenu()">
-            <i class="fas fa-bars"></i>
-        </button>
+    <div style="display: none; position: fixed; top: 0; left: 0; right: 0; background: var(--primary); color: white; padding: 12px 15px; z-index: 1000; align-items: center; justify-content: space-between; height: 60px;" id="mobileHeader">
+        <span style="font-weight: 700; font-size: 18px;">SWAJAR</span>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <button class="mobile-logout-btn" onclick="logout()" style="background: none; border: none; color: white; font-size: 1.3rem; cursor: pointer; padding: 5px;" title="Logout">
+                <i class="fas fa-sign-out-alt"></i>
+            </button>
+            <button class="mobile-menu-toggle" onclick="toggleMobileMenu()" style="background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; padding: 5px;">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
     </div>
 
     <div class="sidebar">

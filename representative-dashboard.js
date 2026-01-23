@@ -56,15 +56,36 @@ window.addEventListener('resize', setupMobileResponsiveness);
 // Fetch dynamic data from database
 async function loadDynamicData() {
     try {
+        console.log('Loading dynamic data from API...');
         const [subjectsRes, teachersRes] = await Promise.all([
             fetch(`${API_BASE}/subjects`),
             fetch(`${API_BASE}/teachers`)
         ]);
         
-        SCHOOL_SUBJECTS = await subjectsRes.json();
-        SCHOOL_TEACHERS = (await teachersRes.json()).map(t => t.teacher_name);
+        if (!subjectsRes.ok || !teachersRes.ok) {
+            throw new Error(`API error: Subjects ${subjectsRes.status}, Teachers ${teachersRes.status}`);
+        }
+        
+        const subjectsData = await subjectsRes.json();
+        const teachersData = await teachersRes.json();
+        
+        // Ensure SCHOOL_SUBJECTS is an array
+        SCHOOL_SUBJECTS = Array.isArray(subjectsData) ? subjectsData : [];
+        SCHOOL_TEACHERS = Array.isArray(teachersData) 
+            ? teachersData.map(t => t.teacher_name || t.name || t) 
+            : [];
+        
+        console.log('Subjects loaded:', SCHOOL_SUBJECTS);
+        console.log('Teachers loaded:', SCHOOL_TEACHERS);
+        
+        if (SCHOOL_SUBJECTS.length === 0 || SCHOOL_TEACHERS.length === 0) {
+            console.warn('Warning: No subjects or teachers loaded');
+        }
     } catch (err) {
         console.error('Error loading dynamic data:', err);
+        // Set empty arrays as fallback
+        SCHOOL_SUBJECTS = [];
+        SCHOOL_TEACHERS = [];
     }
 }
 
@@ -293,6 +314,36 @@ async function loadAttendanceHistory() {
     }
 }
 
+// Delete single schedule item
+async function deleteScheduleItem(scheduleId, day) {
+    if (!confirm(`Yakin ingin menghapus jadwal ini dari hari ${day}?`)) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/delete-schedule/${scheduleId}`, { 
+            method: 'DELETE' 
+        });
+        
+        if (response.ok) {
+            alert('Jadwal berhasil dihapus');
+            // Remove from local classSchedule object
+            if (classSchedule[day]) {
+                classSchedule[day] = classSchedule[day].filter(s => s.id !== scheduleId);
+            }
+            // Refresh displays
+            updateWeeklyScheduleDisplay();
+            updateOverviewSchedule();
+            // Refresh today's schedule if viewing attendance section
+            const reportDateInput = document.getElementById('reportDate');
+            if (reportDateInput) loadTodaySchedule(reportDateInput.value);
+        } else {
+            alert('Gagal menghapus jadwal');
+        }
+    } catch (error) {
+        console.error('Error deleting schedule item:', error);
+        alert('Gagal menghapus jadwal');
+    }
+}
+
 // Delete single history item
 async function deleteHistoryItem(id) {
     if (!confirm('Yakin ingin menghapus laporan ini?')) return;
@@ -339,17 +390,35 @@ function switchDay(day) {
 }
 
 function addScheduleSubject() {
+    // Validate that data is loaded
+    if (SCHOOL_SUBJECTS.length === 0 || SCHOOL_TEACHERS.length === 0) {
+        alert('Data mata pelajaran atau guru belum dimuat. Silakan refresh halaman.');
+        console.error('Cannot add subject - data not loaded. Subjects:', SCHOOL_SUBJECTS, 'Teachers:', SCHOOL_TEACHERS);
+        return;
+    }
+    
     const container = document.getElementById('subjectsList');
     const div = document.createElement('div');
     div.className = 'schedule-subject-item';
     div.style.cssText = "margin-bottom:15px; padding:15px; border:1px solid #eee; border-radius:10px; position:relative; background:#fff;";
+    
+    // Build subject options
+    const subjectOptions = SCHOOL_SUBJECTS.length > 0 
+        ? SCHOOL_SUBJECTS.map(s => `<option value="${s.name || s.id}">${s.name || 'Unknown'}</option>`).join('')
+        : '<option value="">Tidak ada data mata pelajaran</option>';
+    
+    // Build teacher options
+    const teacherOptions = SCHOOL_TEACHERS.length > 0
+        ? SCHOOL_TEACHERS.map(t => `<option value="${t}">${t}</option>`).join('')
+        : '<option value="">Tidak ada data guru</option>';
+    
     div.innerHTML = `
         <button type="button" onclick="this.parentElement.remove()" style="position:absolute; top:5px; right:5px; border:none; background:none; color:red; cursor:pointer; font-size:18px;">&times;</button>
         <select class="subject-dropdown" required style="width:100%; padding:10px; margin-bottom:8px; border-radius:5px; border:1px solid #ccc;">
-            <option value="">Pilih Mata Pelajaran</option>${SCHOOL_SUBJECTS.map(s => `<option value="${s.name}">${s.name}</option>`).join('')}
+            <option value="">Pilih Mata Pelajaran</option>${subjectOptions}
         </select>
         <select class="teacher-dropdown" required style="width:100%; padding:10px; margin-bottom:8px; border-radius:5px; border:1px solid #ccc;">
-            <option value="">Pilih Guru</option>${SCHOOL_TEACHERS.map(t => `<option value="${t}">${t}</option>`).join('')}
+            <option value="">Pilih Guru</option>${teacherOptions}
         </select>
         <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:8px; border-top:1px dashed #eee; padding-top:10px;">
             ${CLASS_PERIODS.map(p => `<label style="font-size:11px; display:flex; align-items:center; gap:5px;"><input type="checkbox" class="period-checkbox" value="${p.period}"> ${p.label}</label>`).join('')}
@@ -395,7 +464,13 @@ function updateWeeklyScheduleDisplay() {
     const days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat'];
     container.innerHTML = days.map(day => `<div style="flex:1; min-width:160px; border:1px solid #e2e8f0; padding:10px; border-radius:10px; background:#fff;">
             <div style="border-bottom:2px solid #3498db; padding-bottom:5px; margin-bottom:10px; font-weight:bold; color:#1e3a8a; font-size:12px;">${day}</div>
-            ${(classSchedule[day] || []).map(s => `<div style="font-size:10px; margin-bottom:8px; padding:5px; background:#f8fafc; border-radius:4px; border:1px solid #edf2f7;"><strong>${s.subjectName}</strong><br><span style="color:#3498db;">${s.startTime}-${s.endTime}</span></div>`).join('')}
+            ${(classSchedule[day] || []).map(s => `<div style="font-size:10px; margin-bottom:8px; padding:5px; background:#f8fafc; border-radius:4px; border:1px solid #edf2f7; position:relative;">
+                <strong>${s.subjectName}</strong><br>
+                <span style="color:#3498db;">${s.startTime}-${s.endTime}</span>
+                <button onclick="deleteScheduleItem(${s.id}, '${day}')" style="position:absolute; top:2px; right:2px; background:#ef4444; color:white; border:none; border-radius:3px; width:16px; height:16px; font-size:8px; cursor:pointer; display:flex; align-items:center; justify-content:center;" title="Hapus jadwal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>`).join('')}
         </div>`).join('');
 }
 
@@ -425,5 +500,11 @@ function logout() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', initializeDashboard);
-document.getElementById('scheduleForm')?.addEventListener('submit', handleScheduleSubmit);
+document.addEventListener('DOMContentLoaded', () => {
+    initializeDashboard();
+    // Setup form event listener after DOM is ready
+    const scheduleForm = document.getElementById('scheduleForm');
+    if (scheduleForm) {
+        scheduleForm.addEventListener('submit', handleScheduleSubmit);
+    }
+});

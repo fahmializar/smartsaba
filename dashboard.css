@@ -1277,7 +1277,34 @@
 
     .dashboard-header .header-content {
         justify-content: space-between;
-        padding: 0 15px;
+        padding: 0 10px;
+        gap: 0.5rem;
+    }
+
+    .logo {
+        font-size: 1rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 0 1 auto;
+    }
+
+    .user-info {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-shrink: 0;
+    }
+
+    .logout-btn {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.75rem;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .logout-btn i {
+        margin-right: 2px;
     }
 
     .logo {
@@ -1493,16 +1520,21 @@
     color: white;
     font-size: 1.5rem;
     cursor: pointer;
-    padding: 0.5rem;
+    padding: 0.3rem 0.5rem;
+    flex-shrink: 0;
+    margin-right: 0.5rem;
 }
 
 @media (max-width: 768px) {
     .mobile-menu-toggle {
-        display: block;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .dashboard-header .header-content {
         position: relative;
+        flex-wrap: nowrap;
     }
 
     .dashboard-header .header-content::before {

@@ -694,7 +694,15 @@ function logout() {
     window.location.href = 'index.html';
 }
 
-// 17. Export Reports (placeholder)
+// 17. Toggle Sidebar Mobile
+function toggleSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    if (sidebar) {
+        sidebar.classList.toggle('active');
+    }
+}
+
+// 18. Export Reports (placeholder)
 function exportReports() {
     alert('Fitur export akan segera hadir!');
 }
