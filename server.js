@@ -645,7 +645,92 @@ app.delete('/api/delete-schedule/:id', async (req, res) => {
     }
 });
 
-// 16. Start Server
+// 16. API to seed database (temporary - remove after use)
+app.post('/api/seed-database', async (req, res) => {
+    try {
+        console.log('🌱 Starting database seeding...');
+        
+        // Create admin user
+        await pool.query(
+            'INSERT INTO users (username, password, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO UPDATE SET password = $2, role = $3',
+            ['admin', 'admin123', 'admin']
+        );
+        console.log('✅ Admin user created');
+        
+        // Load school data
+        const fs = require('fs');
+        const path = require('path');
+        const schoolDataPath = path.join(__dirname, 'data', 'school-data.json');
+        const schoolData = JSON.parse(fs.readFileSync(schoolDataPath, 'utf8'));
+        
+        // Create class representatives
+        for (const cls of schoolData.classes) {
+            await pool.query(
+                'INSERT INTO users (username, password, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO UPDATE SET password = $2, role = $3',
+                [cls.class_name, 'berhias', 'representative']
+            );
+        }
+        console.log('✅ Class representatives created');
+        
+        // Create classes
+        for (const cls of schoolData.classes) {
+            await pool.query(
+                'INSERT INTO classes (class_name, grade, section) VALUES ($1, $2, $3) ON CONFLICT (class_name) DO NOTHING',
+                [cls.class_name, cls.grade, cls.section]
+            );
+        }
+        console.log('✅ Classes created');
+        
+        // Create subjects
+        for (const subject of schoolData.subjects) {
+            await pool.query(
+                'INSERT INTO subjects (code, name) VALUES ($1, $2) ON CONFLICT (code) DO NOTHING',
+                [subject.code, subject.name]
+            );
+        }
+        console.log('✅ Subjects created');
+        
+        // Create teachers
+        for (const teacher of schoolData.teachers) {
+            await pool.query(
+                'INSERT INTO teachers (teacher_name) VALUES ($1) ON CONFLICT (teacher_name) DO NOTHING',
+                [teacher]
+            );
+        }
+        console.log('✅ Teachers created');
+        
+        // Create time slots
+        for (const slot of schoolData.time_slots) {
+            await pool.query(
+                'INSERT INTO time_slots (period, label, start_time, end_time) VALUES ($1, $2, $3, $4) ON CONFLICT (period) DO NOTHING',
+                [slot.period, slot.label, slot.start_time, slot.end_time]
+            );
+        }
+        console.log('✅ Time slots created');
+        
+        // Verify
+        const [usersResult, subjectsResult, teachersResult] = await Promise.all([
+            pool.query('SELECT COUNT(*) as count FROM users'),
+            pool.query('SELECT COUNT(*) as count FROM subjects'),
+            pool.query('SELECT COUNT(*) as count FROM teachers')
+        ]);
+        
+        res.json({ 
+            success: true, 
+            message: 'Database seeded successfully',
+            data: {
+                users: usersResult.rows[0].count,
+                subjects: subjectsResult.rows[0].count,
+                teachers: teachersResult.rows[0].count
+            }
+        });
+    } catch (err) {
+        console.error('Seeding error:', err);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// 17. Start Server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n✓ Server running on http://localhost:${PORT}`);

@@ -1,5 +1,5 @@
 // --- VARIABEL GLOBAL DAN DATA ---
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = window.location.origin + '/api';
 let classSchedule = {}; 
 let SCHOOL_SUBJECTS = [];
 let SCHOOL_TEACHERS = [];

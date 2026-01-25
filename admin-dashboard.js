@@ -3,7 +3,7 @@
 // Global variables
 let currentSection = 'overview';
 let currentReportsData = [];
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = window.location.origin + '/api';
 
 // 1. Initialize Dashboard
 document.addEventListener('DOMContentLoaded', function() {

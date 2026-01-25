@@ -3,3 +3,8 @@ node_modules/
 database.sqlite
 *.log
 .DS_Store
+
+# Diagnostic scripts (temporary)
+diagnose-deployment.js
+fix-deployment-users.js
+test-deployed-login.js

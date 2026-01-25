@@ -1525,6 +1525,21 @@
     margin-right: 0.5rem;
 }
 
+/* Mobile Logout Button */
+.mobile-logout {
+    display: none !important;
+    padding: 0.5rem !important;
+    border-radius: 50% !important;
+    width: 40px !important;
+    height: 40px !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.desktop-logout {
+    display: flex;
+}
+
 @media (max-width: 768px) {
     .mobile-menu-toggle {
         display: flex;
@@ -1545,5 +1560,24 @@
         bottom: 0;
         width: 50px;
         background: rgba(0,0,0,0.1);
+    }
+
+    /* Hide desktop logout, show mobile logout */
+    .desktop-logout {
+        display: none !important;
+    }
+
+    .mobile-logout {
+        display: flex !important;
+    }
+
+    /* Hide welcome text on very small screens */
+    .welcome-text {
+        display: none;
+    }
+
+    /* Adjust logo text for mobile */
+    .logo span {
+        font-size: 1.2rem;
     }
 }
