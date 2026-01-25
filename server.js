@@ -657,11 +657,103 @@ app.post('/api/seed-database', async (req, res) => {
         );
         console.log('✅ Admin user created');
         
-        // Load school data
-        const fs = require('fs');
-        const path = require('path');
-        const schoolDataPath = path.join(__dirname, 'data', 'school-data.json');
-        const schoolData = JSON.parse(fs.readFileSync(schoolDataPath, 'utf8'));
+        // Embedded school data (fallback if file doesn't exist)
+        const schoolData = {
+            "subjects": [
+                { "code": "SEJ", "name": "Sejarah" },
+                { "code": "SOS", "name": "Sosiologi" },
+                { "code": "FIS", "name": "Fisika" },
+                { "code": "MAT TL", "name": "Matematika Tingkat Lanjut" },
+                { "code": "KIM", "name": "Kimia" },
+                { "code": "PP", "name": "Pendidikan Pancasila" },
+                { "code": "PAIBP", "name": "Pendidikan Agama Islam dan Budi Pekerti" },
+                { "code": "GEO", "name": "Geografi" },
+                { "code": "PJOK", "name": "Pendidikan Jasmani, Olahraga, dan Kesehatan" },
+                { "code": "BK", "name": "Bimbingan Konseling" },
+                { "code": "SUN", "name": "Bahasa Sunda" },
+                { "code": "IND", "name": "Bahasa Indonesia" },
+                { "code": "SB", "name": "Seni Budaya" },
+                { "code": "INF", "name": "Informatika" },
+                { "code": "BIO", "name": "Biologi" },
+                { "code": "MAT", "name": "Matematika" }
+            ],
+            "teachers": [
+                "Deni Kusumawardani, S.Pd.",
+                "Gilang Cahya Gumilar, S.E.",
+                "Aam Amilasari, S.Pd.",
+                "Tuti Ella Maryati, S.Pd.",
+                "Yeti Sumiati, S.Pd.",
+                "Pepen Supendi, S.Pd., M.M.",
+                "Drs. M. Cucu Ansorulloh., M.Pd.",
+                "Eneng Hesti, S.Pd.",
+                "Fahmi Alizar Nur Fachrudin, S.Pd.",
+                "Idvan Aprizal Bintara, S.Pd, M.Pd.",
+                "Leli Septiani, S.Pd.",
+                "Mamat Rahmat, S.Pd.",
+                "Nisha Hanifatul Fauziah, S.Pd.",
+                "Novi Kartiani, S.Pd.",
+                "Riska Meylia Eriani, S.Pd.",
+                "Yakinthan Bathin R, S.Pd.",
+                "Silmi Faris, S.Pd.",
+                "Kartika Andriani, S.Pd.",
+                "Napiin Nurohman, S.Pd.",
+                "Muhammad Heru Haerudin, S.Pd.",
+                "Susilawati, S.Pd.",
+                "Fuji Novia, S.Pd.",
+                "Deny Rahman Samsyu, S.Pd.",
+                "Nuryani, S.Pd.I.",
+                "Virda Ayu Purwanti, S.Pd."
+            ],
+            "time_slots": [
+                { "period": 1, "label": "Jam 1", "start_time": "06:30", "end_time": "07:15" },
+                { "period": 2, "label": "Jam 2", "start_time": "07:15", "end_time": "08:00" },
+                { "period": 3, "label": "Jam 3", "start_time": "08:00", "end_time": "08:45" },
+                { "period": 4, "label": "Jam 4", "start_time": "08:45", "end_time": "09:30" },
+                { "period": 5, "label": "Jam 5", "start_time": "09:45", "end_time": "10:30" },
+                { "period": 6, "label": "Jam 6", "start_time": "10:30", "end_time": "11:15" },
+                { "period": 7, "label": "Jam 7", "start_time": "11:15", "end_time": "12:00" },
+                { "period": 8, "label": "Jam 8", "start_time": "12:45", "end_time": "13:30" },
+                { "period": 9, "label": "Jam 9", "start_time": "13:30", "end_time": "14:15" },
+                { "period": 10, "label": "Jam 10", "start_time": "14:15", "end_time": "15:00" }
+            ],
+            "classes": [
+                { "class_name": "X.1", "grade": "X", "section": "1" },
+                { "class_name": "X.2", "grade": "X", "section": "2" },
+                { "class_name": "X.3", "grade": "X", "section": "3" },
+                { "class_name": "X.4", "grade": "X", "section": "4" },
+                { "class_name": "X.5", "grade": "X", "section": "5" },
+                { "class_name": "X.6", "grade": "X", "section": "6" },
+                { "class_name": "X.7", "grade": "X", "section": "7" },
+                { "class_name": "X.8", "grade": "X", "section": "8" },
+                { "class_name": "X.9", "grade": "X", "section": "9" },
+                { "class_name": "X.10", "grade": "X", "section": "10" },
+                { "class_name": "X.11", "grade": "X", "section": "11" },
+                { "class_name": "X.12", "grade": "X", "section": "12" },
+                { "class_name": "XI.MIPA.1", "grade": "XI", "section": "MIPA.1" },
+                { "class_name": "XI.MIPA.2", "grade": "XI", "section": "MIPA.2" },
+                { "class_name": "XI.MIPA.3", "grade": "XI", "section": "MIPA.3" },
+                { "class_name": "XI.MIPA.4", "grade": "XI", "section": "MIPA.4" },
+                { "class_name": "XI.MIPA.5", "grade": "XI", "section": "MIPA.5" },
+                { "class_name": "XI.IPS.1", "grade": "XI", "section": "IPS.1" },
+                { "class_name": "XI.IPS.2", "grade": "XI", "section": "IPS.2" },
+                { "class_name": "XI.IPS.3", "grade": "XI", "section": "IPS.3" },
+                { "class_name": "XI.IPS.4", "grade": "XI", "section": "IPS.4" },
+                { "class_name": "XI.IPS.5", "grade": "XI", "section": "IPS.5" },
+                { "class_name": "XI.IPS.6", "grade": "XI", "section": "IPS.6" },
+                { "class_name": "XI.IPS.7", "grade": "XI", "section": "IPS.7" },
+                { "class_name": "XII.SBIM.1", "grade": "XII", "section": "SBIM.1" },
+                { "class_name": "XII.SBIM.2", "grade": "XII", "section": "SBIM.2" },
+                { "class_name": "XII.SBIM.3", "grade": "XII", "section": "SBIM.3" },
+                { "class_name": "XII.GBIM.1", "grade": "XII", "section": "GBIM.1" },
+                { "class_name": "XII.GBIM.2", "grade": "XII", "section": "GBIM.2" },
+                { "class_name": "XII.GBIM.3", "grade": "XII", "section": "GBIM.3" },
+                { "class_name": "XII.GBIM.4", "grade": "XII", "section": "GBIM.4" },
+                { "class_name": "XII.GBIM.5", "grade": "XII", "section": "GBIM.5" },
+                { "class_name": "XII.EBIM.1", "grade": "XII", "section": "EBIM.1" },
+                { "class_name": "XII.EBIM.2", "grade": "XII", "section": "EBIM.2" },
+                { "class_name": "XII.EBIM.3", "grade": "XII", "section": "EBIM.3" }
+            ]
+        };
         
         // Create class representatives
         for (const cls of schoolData.classes) {
