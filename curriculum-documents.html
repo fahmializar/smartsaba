@@ -260,6 +260,17 @@
             font-weight: 600;
         }
 
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 5px;
+        }
+
         /* Mobile Responsive */
         @media (max-width: 768px) {
             .curriculum-container {
@@ -303,6 +314,55 @@
             .btn-preview {
                 width: 100%;
             }
+
+            /* Mobile Navigation */
+            .mobile-menu-toggle {
+                display: block;
+            }
+
+            .nav-menu {
+                position: fixed;
+                top: 70px;
+                left: -100%;
+                width: 100%;
+                height: calc(100vh - 70px);
+                background: white;
+                flex-direction: column;
+                justify-content: flex-start;
+                align-items: center;
+                transition: left 0.3s ease;
+                z-index: 1000;
+                padding-top: 50px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+
+            .nav-menu.active {
+                left: 0;
+            }
+
+            .nav-menu .nav-link {
+                color: #333;
+                padding: 15px 0;
+                font-size: 1.1rem;
+                border-bottom: 1px solid #eee;
+                width: 80%;
+                text-align: center;
+            }
+
+            .nav-menu .nav-link:hover {
+                color: #3498db;
+                background: #f8f9fa;
+            }
+
+            .nav-menu .login-btn {
+                margin-top: 20px;
+                background: #3498db;
+                color: white;
+                border: none;
+                padding: 12px 30px;
+                border-radius: 25px;
+                font-size: 1rem;
+            }
         }
     </style>
 </head>
@@ -314,13 +374,16 @@
                 <i class="fas fa-graduation-cap"></i>
                 <span>Kurikulum Smansaba</span>
             </div>
-            <div class="nav-menu">
+            <div class="nav-menu" id="navMenu">
                 <a href="index.html" class="nav-link">Beranda</a>
                 <a href="index.html#programs" class="nav-link">Program</a>
                 <a href="curriculum-documents.html" class="nav-link active" style="font-weight: bold;">Dokumen Digital Kurikulum</a>
                 <button class="login-btn" onclick="openLoginModal()">
                     <i class="fas fa-sign-in-alt"></i> Login
                 </button>
+            </div>
+            <div class="mobile-menu-toggle" onclick="toggleMobileMenu()">
+                <i class="fas fa-bars"></i>
             </div>
         </div>
     </nav>
@@ -413,6 +476,51 @@
         </div>
     </div>
 
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeLoginModal()">&times;</span>
+            <div class="modal-header">
+                <h2>Login Sistem</h2>
+                <p>Pilih peran Anda untuk mengakses dashboard</p>
+            </div>
+            <div class="login-form">
+                <div class="role-selector">
+                    <button class="role-btn active" onclick="selectRole('teacher')" data-role="teacher">
+                        <i class="fas fa-chalkboard-teacher"></i>
+                        <span>Guru</span>
+                    </button>
+                    <button class="role-btn" onclick="selectRole('representative')" data-role="representative">
+                        <i class="fas fa-user-graduate"></i>
+                        <span>Perwakilan Kelas</span>
+                    </button>
+                    <button class="role-btn" onclick="selectRole('admin')" data-role="admin">
+                        <i class="fas fa-user-shield"></i>
+                        <span>Administrator</span>
+                    </button>
+                </div>
+                <form id="loginForm" onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" name="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <div class="password-input-container">
+                            <input type="password" id="password" name="password" required>
+                            <button type="button" class="toggle-password" onclick="togglePasswordVisibility()">
+                                <i class="fas fa-eye" id="passwordToggleIcon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-login">
+                        <i class="fas fa-sign-in-alt"></i> Login
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script>
         const FOLDER_ID = '1ZeQnYBcQqJZ3_E2FRU9igtKdtknCm9gO';
         let allDocuments = [];
@@ -434,6 +542,26 @@
                 const data = await response.json();
                 
                 if (data.success) {
+                    // If no documents found, try sample data
+                    if (data.documents.length === 0) {
+                        console.log('No documents in Google Drive, loading sample data...');
+                        const sampleResponse = await fetch('/api/curriculum-documents-sample');
+                        const sampleData = await sampleResponse.json();
+                        
+                        if (sampleData.success) {
+                            allDocuments = sampleData.documents.sort((a, b) => {
+                                return new Date(b.createdTime) - new Date(a.createdTime);
+                            });
+                            filteredDocuments = [...allDocuments];
+                            renderDocuments();
+                            updateStats();
+                            
+                            // Show info message about sample data
+                            showInfoMessage('Menampilkan dokumen contoh. Upload file PDF ke Google Drive untuk menampilkan dokumen asli.');
+                            return;
+                        }
+                    }
+                    
                     allDocuments = data.documents.sort((a, b) => {
                         return new Date(b.createdTime) - new Date(a.createdTime);
                     });
@@ -568,10 +696,50 @@
             `;
         }
 
+        // Show info message
+        function showInfoMessage(message) {
+            const container = document.getElementById('documentsContainer');
+            const infoDiv = document.createElement('div');
+            infoDiv.style.cssText = `
+                grid-column: 1/-1;
+                background: #e3f2fd;
+                color: #1976d2;
+                padding: 15px;
+                border-radius: 8px;
+                margin-bottom: 20px;
+                border-left: 4px solid #2196f3;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            `;
+            infoDiv.innerHTML = `
+                <i class="fas fa-info-circle"></i>
+                <span>${message}</span>
+            `;
+            container.insertBefore(infoDiv, container.firstChild);
+        }
+
         // Open login modal
         function openLoginModal() {
             document.getElementById('loginModal').style.display = 'block';
         }
+
+        // Toggle mobile menu
+        function toggleMobileMenu() {
+            const navMenu = document.getElementById('navMenu');
+            navMenu.classList.toggle('active');
+        }
+
+        // Close mobile menu when clicking on a link
+        document.addEventListener('DOMContentLoaded', function() {
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => {
+                link.addEventListener('click', function() {
+                    const navMenu = document.getElementById('navMenu');
+                    navMenu.classList.remove('active');
+                });
+            });
+        });
 
         // Close preview on outside click
         window.onclick = function(event) {

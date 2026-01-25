@@ -3,7 +3,10 @@ let currentRole = 'teacher';
 
 // Navigation
 function scrollToSection(sectionId) {
-    document.getElementById(sectionId).scrollIntoView({ behavior: 'smooth' });
+    const element = document.getElementById(sectionId);
+    if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+    }
 }
 
 // Modal
@@ -94,12 +97,37 @@ window.onclick = function(event) {
     if (event.target === modal) closeLoginModal();
 };
 
+// Toggle mobile menu
+function toggleMobileMenu() {
+    const navMenu = document.getElementById('navMenu');
+    navMenu.classList.toggle('active');
+}
+
+// Close mobile menu when clicking on a link
+document.addEventListener('DOMContentLoaded', function() {
+    const navLinks = document.querySelectorAll('.nav-link');
+    navLinks.forEach(link => {
+        link.addEventListener('click', function() {
+            const navMenu = document.getElementById('navMenu');
+            if (navMenu) {
+                navMenu.classList.remove('active');
+            }
+        });
+    });
+});
+
 // Navbar scroll
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.nav-link').forEach(link => {
         link.addEventListener('click', e => {
-            e.preventDefault();
-            scrollToSection(link.getAttribute('href').substring(1));
+            const href = link.getAttribute('href');
+            
+            // Only prevent default for internal anchor links (starting with #)
+            if (href && href.startsWith('#')) {
+                e.preventDefault();
+                scrollToSection(href.substring(1));
+            }
+            // For external links (like curriculum-documents.html), let them navigate normally
         });
     });
 });
