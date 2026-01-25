@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Frontend API Calls</title>
+</head>
+<body>
+    <h1>Debug Frontend API Calls</h1>
+    <div id="results"></div>
+
+    <script>
+        // Test the same API calls that representative dashboard makes
+        const API_BASE = window.location.origin + '/api';
+        
+        async function testAPICalls() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<h2>Testing API calls...</h2>';
+            
+            try {
+                console.log('API_BASE:', API_BASE);
+                results.innerHTML += `<p><strong>API_BASE:</strong> ${API_BASE}</p>`;
+                
+                // Test subjects API
+                console.log('Testing subjects API...');
+                const subjectsRes = await fetch(`${API_BASE}/subjects`);
+                const subjectsData = await subjectsRes.json();
+                
+                console.log('Subjects response:', subjectsData);
+                results.innerHTML += `<h3>Subjects API:</h3>`;
+                results.innerHTML += `<p>Status: ${subjectsRes.status}</p>`;
+                results.innerHTML += `<p>Count: ${Array.isArray(subjectsData) ? subjectsData.length : 'Not an array'}</p>`;
+                results.innerHTML += `<pre>${JSON.stringify(subjectsData.slice(0, 2), null, 2)}</pre>`;
+                
+                // Test teachers API
+                console.log('Testing teachers API...');
+                const teachersRes = await fetch(`${API_BASE}/teachers`);
+                const teachersData = await teachersRes.json();
+                
+                console.log('Teachers response:', teachersData);
+                results.innerHTML += `<h3>Teachers API:</h3>`;
+                results.innerHTML += `<p>Status: ${teachersRes.status}</p>`;
+                results.innerHTML += `<p>Count: ${Array.isArray(teachersData) ? teachersData.length : 'Not an array'}</p>`;
+                results.innerHTML += `<pre>${JSON.stringify(teachersData.slice(0, 2), null, 2)}</pre>`;
+                
+                // Test the same logic as representative dashboard
+                const SCHOOL_SUBJECTS = Array.isArray(subjectsData) ? subjectsData : [];
+                const SCHOOL_TEACHERS = Array.isArray(teachersData) 
+                    ? teachersData.map(t => t.teacher_name || t.name || t) 
+                    : [];
+                
+                results.innerHTML += `<h3>Processed Data:</h3>`;
+                results.innerHTML += `<p>SCHOOL_SUBJECTS length: ${SCHOOL_SUBJECTS.length}</p>`;
+                results.innerHTML += `<p>SCHOOL_TEACHERS length: ${SCHOOL_TEACHERS.length}</p>`;
+                
+                if (SCHOOL_SUBJECTS.length === 0 || SCHOOL_TEACHERS.length === 0) {
+                    results.innerHTML += `<p style="color: red;"><strong>ERROR: Data mata pelajaran atau guru belum dimuat!</strong></p>`;
+                } else {
+                    results.innerHTML += `<p style="color: green;"><strong>SUCCESS: Data loaded correctly!</strong></p>`;
+                }
+                
+                // Show sample processed data
+                results.innerHTML += `<h4>Sample Subjects:</h4>`;
+                results.innerHTML += `<pre>${JSON.stringify(SCHOOL_SUBJECTS.slice(0, 3), null, 2)}</pre>`;
+                
+                results.innerHTML += `<h4>Sample Teachers:</h4>`;
+                results.innerHTML += `<pre>${JSON.stringify(SCHOOL_TEACHERS.slice(0, 3), null, 2)}</pre>`;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                results.innerHTML += `<p style="color: red;"><strong>ERROR:</strong> ${error.message}</p>`;
+            }
+        }
+        
+        // Run test when page loads
+        testAPICalls();
+    </script>
+</body>
+</html>
