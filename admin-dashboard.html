@@ -9,7 +9,47 @@
     <link rel="stylesheet" href="admin.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.min.js"></script>
+    
+    <!-- XLSX Library with multiple CDN fallbacks -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.min.js" 
+            integrity="sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==" 
+            crossorigin="anonymous" 
+            referrerpolicy="no-referrer"
+            onerror="loadXLSXFallback()"></script>
+    
+    <!-- Fallback XLSX loading script -->
+    <script>
+        function loadXLSXFallback() {
+            console.log('Primary XLSX CDN failed, trying fallback...');
+            
+            // Try alternative CDN
+            const script1 = document.createElement('script');
+            script1.src = 'https://unpkg.com/xlsx@0.18.5/dist/xlsx.min.js';
+            script1.onerror = function() {
+                console.log('Second XLSX CDN failed, trying third fallback...');
+                
+                // Try another alternative
+                const script2 = document.createElement('script');
+                script2.src = 'https://cdn.sheetjs.com/xlsx-0.18.5/package/dist/xlsx.min.js';
+                script2.onerror = function() {
+                    console.error('All XLSX CDNs failed to load');
+                    window.xlsxLoadError = true;
+                };
+                document.head.appendChild(script2);
+            };
+            document.head.appendChild(script1);
+        }
+        
+        // Check if XLSX loaded after page load
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                if (typeof XLSX === 'undefined' && !window.xlsxLoadError) {
+                    console.log('XLSX not detected, attempting manual load...');
+                    loadXLSXFallback();
+                }
+            }, 1000);
+        });
+    </script>
 </head>
 <body>
     <header class="dashboard-header">

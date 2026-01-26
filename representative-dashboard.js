@@ -4,6 +4,41 @@ let classSchedule = {};
 let SCHOOL_SUBJECTS = [];
 let SCHOOL_TEACHERS = [];
 
+// Indonesian date formatting utility
+function formatIndonesianDate(dateString) {
+    if (!dateString) return 'Tanggal tidak valid';
+    
+    try {
+        // Handle different date formats
+        let date;
+        if (typeof dateString === 'string') {
+            // Remove time part if present (e.g., "2024-01-26T00:00:00.000Z" -> "2024-01-26")
+            const dateOnly = dateString.split('T')[0];
+            date = new Date(dateOnly + 'T00:00:00.000Z'); // Add UTC time to avoid timezone issues
+        } else if (dateString instanceof Date) {
+            date = dateString;
+        } else {
+            return 'Format tanggal tidak valid';
+        }
+        
+        // Check if date is valid
+        if (isNaN(date.getTime())) {
+            return 'Tanggal tidak valid';
+        }
+        
+        // Format to Indonesian date
+        return date.toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            timeZone: 'UTC' // Use UTC to avoid timezone conversion
+        });
+    } catch (error) {
+        console.error('Error formatting date:', error);
+        return 'Error format tanggal';
+    }
+}
+
 const CLASS_PERIODS = [
     { period: 1, time: '06:30-07:15', label: 'Jam 1 (06:30-07:15)' },
     { period: 2, time: '07:15-08:00', label: 'Jam 2 (07:15-08:00)' },
@@ -153,26 +188,86 @@ function updateOverviewSchedule() {
 }
 
 // --- FUNGSI LAPOR KEHADIRAN ---
-function loadTodaySchedule(dateString) {
+async function loadTodaySchedule(dateString) {
     const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
     const dayName = days[new Date(dateString).getDay()];
     const container = document.getElementById('todaySubjectsGrid');
     const todaySubjects = classSchedule[dayName] || [];
     if (!container) return;
-    container.innerHTML = ''; 
+    
+    // Show loading state
+    container.innerHTML = '<p style="text-align:center; padding:20px; color:#3498db;"><i class="fas fa-spinner fa-spin"></i> Memuat jadwal...</p>';
+    
     if (todaySubjects.length === 0) {
         container.innerHTML = '<p style="text-align:center; padding:20px; color:#94a3b8;">Tidak ada jadwal presensi hari ini.</p>';
         return;
     }
+
+    // Check for existing reports for this date
+    const className = localStorage.getItem('username') || 'Unknown';
+    let existingReports = [];
+    
+    try {
+        const response = await fetch(`${API_BASE}/check-existing-report?class_name=${encodeURIComponent(className)}&date=${dateString}`);
+        if (response.ok) {
+            const result = await response.json();
+            if (result.exists) {
+                existingReports = result.subjects;
+                console.log('📋 Found existing reports:', existingReports);
+            }
+        }
+    } catch (error) {
+        console.error('Error checking existing reports:', error);
+    }
+
+    // Show warning if reports already exist
+    let warningHtml = '';
+    if (existingReports.length > 0) {
+        const existingSubjects = existingReports.map(r => r.subject).join(', ');
+        warningHtml = `
+            <div style="background: #fef3cd; border: 1px solid #fbbf24; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                    <i class="fas fa-exclamation-triangle" style="color: #f59e0b; font-size: 1.2em;"></i>
+                    <strong style="color: #92400e;">Laporan Sudah Ada</strong>
+                </div>
+                <p style="color: #92400e; margin: 0; font-size: 0.9em;">
+                    Anda sudah melaporkan kehadiran untuk tanggal ${formatIndonesianDate(dateString)}:<br>
+                    <strong>${existingSubjects}</strong>
+                </p>
+                <p style="color: #92400e; margin: 10px 0 0 0; font-size: 0.85em; font-style: italic;">
+                    Jika Anda mengirim laporan baru, laporan lama akan diganti.
+                </p>
+            </div>
+        `;
+    }
+
+    container.innerHTML = warningHtml;
+    
+    // Render subject cards
     todaySubjects.forEach((s, idx) => {
+        // Check if this subject already has a report
+        const existingReport = existingReports.find(r => r.subject === s.subjectName);
+        const hasExistingReport = !!existingReport;
+        
         const card = document.createElement('div');
         card.dataset.subject = s.subjectName;
         card.dataset.teacher = s.teacherName;
         card.dataset.start = s.startTime;
         card.dataset.end = s.endTime;
 
-        card.style.cssText = "display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 12px; border: 1px solid #e2e8f0;";
-        card.innerHTML = `<div><h4 style="margin: 0; color: #1e293b; font-size: 0.95em;">${s.subjectName}</h4><p style="margin: 2px 0 0 0; font-size: 0.75em; color: #64748b;">${s.teacherName}</p></div>
+        // Add visual indicator for existing reports
+        let statusIndicator = '';
+        let cardStyle = "display: flex; align-items: center; justify-content: space-between; background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 12px; border: 1px solid #e2e8f0;";
+        
+        if (hasExistingReport) {
+            const statusColor = existingReport.status === 'hadir' ? '#10b981' : 
+                               existingReport.status === 'tugas' ? '#f59e0b' : '#ef4444';
+            statusIndicator = `<div style="background: ${statusColor}; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7em; font-weight: bold; margin-left: 8px;">✓ ${existingReport.status.toUpperCase()}</div>`;
+            cardStyle = `display: flex; align-items: center; justify-content: space-between; background: #f8fafc; padding: 15px; border-radius: 12px; margin-bottom: 12px; border: 2px solid ${statusColor};`;
+        }
+
+        card.style.cssText = cardStyle;
+        card.innerHTML = `<div><h4 style="margin: 0; color: #1e293b; font-size: 0.95em; display: flex; align-items: center;">${s.subjectName}${statusIndicator}</h4><p style="margin: 2px 0 0 0; font-size: 0.75em; color: #64748b;">${s.teacherName}</p></div>
             <div style="display: flex; gap: 8px;">
                 <label style="cursor: pointer;"><input type="radio" name="status_${idx}" value="Hadir" required style="display:none;" onchange="updateButtonStyle(this)"><span class="btn-att" style="display:inline-block; padding: 6px 12px; border-radius: 6px; border: 1.5px solid #10b981; color: #10b981; font-weight: 700; font-size: 0.8em;">Hadir</span></label>
                 <label style="cursor: pointer;"><input type="radio" name="status_${idx}" value="Tugas" style="display:none;" onchange="updateButtonStyle(this)"><span class="btn-att" style="display:inline-block; padding: 6px 12px; border-radius: 6px; border: 1.5px solid #f59e0b; color: #f59e0b; font-weight: 700; font-size: 0.8em;">Tugas</span></label>
@@ -219,18 +314,41 @@ async function submitAttendanceReport() {
 
     if (!allSelected || attendance.length === 0) return alert("Mohon pilih status untuk semua mata pelajaran!");
 
-    // Objek Laporan untuk LocalStorage (Dashboard Admin)
-    const localReport = {
-        id: Date.now(),
-        className: className,
-        date: date,
-        submittedBy: className,
-        createdAt: new Date().toISOString(),
-        subjects: attendance,
-        notes: ""
-    };
-
     try {
+        // Check for existing reports for this date and class
+        console.log('🔍 Checking for existing reports...');
+        const checkResponse = await fetch(`${API_BASE}/check-existing-report?class_name=${encodeURIComponent(className)}&date=${date}`);
+        
+        if (checkResponse.ok) {
+            const checkResult = await checkResponse.json();
+            
+            if (checkResult.exists && checkResult.subjects.length > 0) {
+                const existingSubjects = checkResult.subjects.map(s => s.subject).join(', ');
+                const confirmMessage = `⚠️ PERINGATAN: Anda sudah melaporkan kehadiran untuk tanggal ${formatIndonesianDate(date)}!\n\n` +
+                    `Mata pelajaran yang sudah dilaporkan:\n${existingSubjects}\n\n` +
+                    `Apakah Anda ingin mengganti laporan yang sudah ada?\n\n` +
+                    `⚠️ Laporan lama akan dihapus dan diganti dengan laporan baru.`;
+                
+                if (!confirm(confirmMessage)) {
+                    return; // User cancelled
+                }
+                
+                // User confirmed to replace, continue with submission
+                console.log('✅ User confirmed to replace existing report');
+            }
+        }
+
+        // Objek Laporan untuk LocalStorage (Dashboard Admin)
+        const localReport = {
+            id: Date.now(),
+            className: className,
+            date: date,
+            submittedBy: className,
+            createdAt: new Date().toISOString(),
+            subjects: attendance,
+            notes: ""
+        };
+
         // --- PERBAIKAN: Simpan ke LocalStorage agar Admin bisa baca ---
         const existingReports = JSON.parse(localStorage.getItem('allReports')) || [];
         existingReports.push(localReport);
@@ -293,7 +411,7 @@ async function loadAttendanceHistory() {
             const statusColor = item.status === 'Hadir' ? '#10b981' : (item.status === 'Tugas' ? '#f59e0b' : '#ef4444');
             html += `
                 <tr style="border-bottom: 1px solid #e2e8f0;">
-                    <td style="padding: 12px;">${item.report_date}</td>
+                    <td style="padding: 12px;">${formatIndonesianDate(item.report_date)}</td>
                     <td style="padding: 12px; font-weight: 600;">${item.subject}</td>
                     <td style="padding: 12px; text-align: center;">
                         <span style="background: ${statusColor}; color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.8em; font-weight: bold; display: inline-block; min-width: 60px;">${item.status}</span>

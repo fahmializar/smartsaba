@@ -5,6 +5,41 @@ let currentSection = 'overview';
 let currentReportsData = [];
 const API_BASE = window.location.origin + '/api';
 
+// Indonesian date formatting utility
+function formatIndonesianDate(dateString) {
+    if (!dateString) return 'Tanggal tidak valid';
+    
+    try {
+        // Handle different date formats
+        let date;
+        if (typeof dateString === 'string') {
+            // Remove time part if present (e.g., "2024-01-26T00:00:00.000Z" -> "2024-01-26")
+            const dateOnly = dateString.split('T')[0];
+            date = new Date(dateOnly + 'T00:00:00.000Z'); // Add UTC time to avoid timezone issues
+        } else if (dateString instanceof Date) {
+            date = dateString;
+        } else {
+            return 'Format tanggal tidak valid';
+        }
+        
+        // Check if date is valid
+        if (isNaN(date.getTime())) {
+            return 'Tanggal tidak valid';
+        }
+        
+        // Format to Indonesian date
+        return date.toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            timeZone: 'UTC' // Use UTC to avoid timezone conversion
+        });
+    } catch (error) {
+        console.error('Error formatting date:', error);
+        return 'Error format tanggal';
+    }
+}
+
 // 1. Initialize Dashboard
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Admin Dashboard Initializing...');
@@ -301,7 +336,7 @@ async function loadReports() {
         container.innerHTML = filtered.map(report => `
             <div style="border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 8px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                 <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 10px;">
-                    <strong>${report.className} - ${new Date(report.date).toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'})}</strong>
+                    <strong>${report.className} - ${formatIndonesianDate(report.date)}</strong>
                     <small style="color:#666;">Pengirim: ${report.submittedBy}</small>
                 </div>
                 <div class="subjects-grid">
@@ -581,6 +616,22 @@ async function downloadExcelAnalytics() {
     try {
         console.log('📥 Preparing Excel download...');
 
+        // Check if XLSX library is loaded with multiple attempts
+        if (typeof XLSX === 'undefined') {
+            console.log('XLSX not found, attempting to load...');
+            
+            // Try to load XLSX dynamically
+            await loadXLSXDynamically();
+            
+            // Wait a bit for it to load
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            if (typeof XLSX === 'undefined') {
+                // If XLSX still not available, offer alternative download
+                return downloadAsCSV();
+            }
+        }
+
         // Get filter values
         const teacher = document.getElementById('analyticsTeacher')?.value || '';
         const cls = document.getElementById('analyticsClass')?.value || '';
@@ -600,11 +651,6 @@ async function downloadExcelAnalytics() {
         const data = await response.json();
 
         console.log('📊 Analytics data received:', data);
-
-        // Check if XLSX library is loaded
-        if (typeof XLSX === 'undefined') {
-            throw new Error('XLSX library not loaded. Please refresh the page and try again.');
-        }
 
         // Check if we have data
         if (!data.summary || data.summary.totalRecords === 0) {
@@ -656,7 +702,7 @@ async function downloadExcelAnalytics() {
         rawData.push(['Tanggal', 'Kelas', 'Mata Pelajaran', 'Guru', 'Status']);
         data.rawData.forEach(row => {
             rawData.push([
-                row.report_date,
+                formatIndonesianDate(row.report_date),
                 row.class_name,
                 row.subject,
                 row.teacher_name || 'N/A',
@@ -682,7 +728,92 @@ async function downloadExcelAnalytics() {
 
     } catch (err) {
         console.error('❌ Error downloading Excel:', err);
-        alert('Error downloading Excel: ' + err.message);
+        alert('Error downloading Excel: ' + err.message + '\n\nCoba refresh halaman dan coba lagi.');
+    }
+}
+
+// Dynamic XLSX loading function
+async function loadXLSXDynamically() {
+    return new Promise((resolve, reject) => {
+        if (typeof XLSX !== 'undefined') {
+            resolve();
+            return;
+        }
+        
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/xlsx@0.18.5/dist/xlsx.min.js';
+        script.onload = () => {
+            console.log('XLSX loaded dynamically');
+            resolve();
+        };
+        script.onerror = () => {
+            console.error('Failed to load XLSX dynamically');
+            reject(new Error('Failed to load XLSX library'));
+        };
+        document.head.appendChild(script);
+    });
+}
+
+// Fallback CSV download function
+async function downloadAsCSV() {
+    try {
+        console.log('📥 XLSX not available, downloading as CSV...');
+        
+        // Get the same data
+        const teacher = document.getElementById('analyticsTeacher')?.value || '';
+        const cls = document.getElementById('analyticsClass')?.value || '';
+        const month = document.getElementById('analyticsMonth')?.value || '';
+        const year = document.getElementById('analyticsYear')?.value || '';
+
+        const params = new URLSearchParams();
+        if (teacher) params.append('teacher_name', teacher);
+        if (cls) params.append('class_name', cls);
+        if (month) params.append('month', month);
+        if (year) params.append('year', year);
+
+        const response = await fetch(`${API_BASE}/analytics?${params.toString()}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+
+        if (!data.summary || data.summary.totalRecords === 0) {
+            alert('Tidak ada data kehadiran untuk diunduh.');
+            return;
+        }
+
+        // Create CSV content
+        let csvContent = "RINGKASAN ANALITIK KEHADIRAN\n\n";
+        csvContent += "Metrik,Jumlah,Persentase\n";
+        csvContent += `Total Kehadiran,${data.summary.totalRecords},100%\n`;
+        csvContent += `Hadir,${data.summary.hadir},${data.summary.hadirPercent}%\n`;
+        csvContent += `Tugas,${data.summary.tugas},${data.summary.tugasPercent}%\n`;
+        csvContent += `Tidak Hadir,${data.summary.tidak},${data.summary.tidakPercent}%\n\n`;
+        
+        csvContent += "DATA KEHADIRAN LENGKAP\n";
+        csvContent += "Tanggal,Kelas,Mata Pelajaran,Guru,Status\n";
+        data.rawData.forEach(row => {
+            csvContent += `${formatIndonesianDate(row.report_date)},${row.class_name},"${row.subject}","${row.teacher_name || 'N/A'}",${(row.status || 'Tidak Hadir').toUpperCase()}\n`;
+        });
+
+        // Download CSV
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        
+        const now = new Date();
+        const dateStr = now.toISOString().slice(0, 10);
+        link.setAttribute('download', `Analitik_Kehadiran_${dateStr}.csv`);
+        
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        alert('File CSV berhasil diunduh! (Excel library tidak tersedia, menggunakan format CSV sebagai alternatif)');
+        
+    } catch (err) {
+        console.error('❌ Error downloading CSV:', err);
+        alert('Error downloading data: ' + err.message);
     }
 }
 
@@ -764,39 +895,71 @@ async function loadAttendanceStatus() {
         const classesResponse = await fetch(`${API_BASE}/classes`);
         if (!classesResponse.ok) throw new Error('Failed to fetch classes');
         allClasses = await classesResponse.json();
+        console.log('📋 Loaded classes:', allClasses.length);
         
-        // Load attendance reports for the selected date
+        // Load attendance reports - use the grouped reports from all-reports endpoint
         const reportsResponse = await fetch(`${API_BASE}/all-reports`);
         if (!reportsResponse.ok) throw new Error('Failed to fetch reports');
-        const allReports = await reportsResponse.json();
+        const allGroupedReports = await reportsResponse.json();
+        console.log('📝 Total grouped reports in database:', allGroupedReports.length);
+        
+        // Debug: Show sample report dates
+        if (allGroupedReports.length > 0) {
+            console.log('📅 Sample report dates:', allGroupedReports.slice(0, 3).map(r => ({
+                class: r.className,
+                date: r.date,
+                dateType: typeof r.date
+            })));
+        }
         
         // Filter reports for the selected date
-        const dateReports = allReports.filter(report => 
-            report.report_date === selectedDate
-        );
-        
-        // Group reports by class
-        const reportsByClass = {};
-        dateReports.forEach(report => {
-            if (!reportsByClass[report.class_name]) {
-                reportsByClass[report.class_name] = [];
+        const dateReports = allGroupedReports.filter(report => {
+            if (!report.date) return false;
+            
+            // Handle different date formats
+            let reportDate;
+            if (typeof report.date === 'string') {
+                // If it's a string, extract just the date part (YYYY-MM-DD)
+                reportDate = report.date.split('T')[0];
+            } else if (report.date instanceof Date) {
+                // If it's a Date object, format it
+                reportDate = report.date.toISOString().split('T')[0];
+            } else {
+                return false;
             }
-            reportsByClass[report.class_name].push(report);
+            
+            return reportDate === selectedDate;
         });
+        
+        console.log('📊 Reports for selected date:', dateReports.length);
+        console.log('🎯 Selected date:', selectedDate);
+        
+        // Create a map of classes that have reported
+        const reportedClasses = new Set();
+        const reportsByClass = {};
+        
+        dateReports.forEach(report => {
+            reportedClasses.add(report.className);
+            reportsByClass[report.className] = report;
+        });
+        
+        console.log('📊 Classes with reports:', Array.from(reportedClasses));
         
         // Create attendance status data
         attendanceStatusData = allClasses.map(cls => {
-            const classReports = reportsByClass[cls.class_name] || [];
-            const hasReports = classReports.length > 0;
-            const lastReportTime = hasReports ? 
-                Math.max(...classReports.map(r => new Date(r.timestamp).getTime())) : null;
+            const hasReported = reportedClasses.has(cls.class_name);
+            const classReport = reportsByClass[cls.class_name];
+            const lastReportTime = hasReported && classReport ? new Date(classReport.createdAt) : null;
+            const subjectCount = hasReported && classReport ? classReport.subjects.length : 0;
+            
+            console.log(`📋 Class ${cls.class_name}: ${hasReported ? 'REPORTED' : 'PENDING'} (${subjectCount} subjects)`);
             
             return {
                 className: cls.class_name,
-                status: hasReports ? 'reported' : 'pending',
-                lastReportTime: lastReportTime ? new Date(lastReportTime) : null,
-                subjectCount: classReports.length,
-                reports: classReports
+                status: hasReported ? 'reported' : 'pending',
+                lastReportTime: lastReportTime,
+                subjectCount: subjectCount,
+                reports: hasReported ? [classReport] : []
             };
         });
         
@@ -805,7 +968,12 @@ async function loadAttendanceStatus() {
         
     } catch (error) {
         console.error('❌ Error loading attendance status:', error);
-        showError('Gagal memuat status kehadiran: ' + error.message);
+        // Use alert as fallback if showError doesn't exist
+        if (typeof showError === 'function') {
+            showError('Gagal memuat status kehadiran: ' + error.message);
+        } else {
+            alert('Gagal memuat status kehadiran: ' + error.message);
+        }
     }
 }
 
@@ -847,7 +1015,7 @@ function renderAttendanceStatusTable() {
             '<span class="status-badge pending"><i class="fas fa-clock"></i> Belum Lapor</span>';
         
         const lastReportTime = item.lastReportTime ? 
-            item.lastReportTime.toLocaleString('id-ID') : '-';
+            formatIndonesianDate(item.lastReportTime) + ' ' + item.lastReportTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-';
         
         const actions = item.status === 'reported' ? 
             `<button class="action-btn view-btn" onclick="viewClassReports('${item.className}')">
