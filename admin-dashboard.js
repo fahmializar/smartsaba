@@ -611,26 +611,30 @@ function createTrendChart(byDate) {
     });
 }
 
-// 13. Download Analytics as Excel
+// 13. Download Analytics as Excel with robust XLSX loading
 async function downloadExcelAnalytics() {
+    const downloadBtn = document.getElementById('downloadBtn');
+    const downloadBtnText = document.getElementById('downloadBtnText');
+    const originalText = downloadBtnText.textContent;
+    
     try {
+        // Show loading state
+        downloadBtn.disabled = true;
+        downloadBtnText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memuat...';
+        
         console.log('📥 Preparing Excel download...');
 
-        // Check if XLSX library is loaded with multiple attempts
-        if (typeof XLSX === 'undefined') {
-            console.log('XLSX not found, attempting to load...');
-            
-            // Try to load XLSX dynamically
-            await loadXLSXDynamically();
-            
-            // Wait a bit for it to load
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            if (typeof XLSX === 'undefined') {
-                // If XLSX still not available, offer alternative download
-                return downloadAsCSV();
-            }
+        // Try to ensure XLSX is loaded
+        downloadBtnText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memuat XLSX...';
+        const xlsxLoaded = await ensureXLSXLoaded();
+        
+        if (!xlsxLoaded) {
+            console.log('⚠️ XLSX library could not be loaded, using CSV format instead');
+            downloadBtnText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengunduh CSV...';
+            return downloadAsCSV();
         }
+
+        downloadBtnText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengunduh Excel...';
 
         // Get filter values
         const teacher = document.getElementById('analyticsTeacher')?.value || '';
@@ -724,33 +728,96 @@ async function downloadExcelAnalytics() {
         console.log('✅ Excel file downloaded successfully:', filename);
         
         // Show success message
-        alert(`File Excel berhasil diunduh: ${filename}`);
+        alert(`✅ File Excel berhasil diunduh: ${filename}\n\n📊 File berisi 4 sheet:\n• Ringkasan\n• Data per Guru\n• Data per Kelas\n• Data Lengkap`);
 
     } catch (err) {
         console.error('❌ Error downloading Excel:', err);
-        alert('Error downloading Excel: ' + err.message + '\n\nCoba refresh halaman dan coba lagi.');
+        
+        // If Excel fails, try CSV as fallback
+        console.log('🔄 Excel failed, trying CSV fallback...');
+        try {
+            downloadBtnText.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Mengunduh CSV...';
+            await downloadAsCSV();
+        } catch (csvErr) {
+            console.error('❌ CSV fallback also failed:', csvErr);
+            alert('❌ Gagal mengunduh file.\n\nSilakan coba lagi atau hubungi administrator.');
+        }
+    } finally {
+        // Reset button state
+        downloadBtn.disabled = false;
+        downloadBtnText.textContent = originalText;
     }
 }
 
-// Dynamic XLSX loading function
-async function loadXLSXDynamically() {
+// Function to ensure XLSX library is loaded with multiple fallback sources
+async function ensureXLSXLoaded() {
+    // Check if already loaded
+    if (typeof XLSX !== 'undefined') {
+        console.log('✅ XLSX already loaded');
+        return true;
+    }
+
+    console.log('📦 XLSX not found, attempting to load...');
+
+    // List of CDN sources to try
+    const cdnSources = [
+        'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+        'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+        'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js',
+        'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js'
+    ];
+
+    for (const src of cdnSources) {
+        try {
+            console.log(`🔄 Trying to load XLSX from: ${src}`);
+            const loaded = await loadScript(src);
+            if (loaded && typeof XLSX !== 'undefined') {
+                console.log('✅ XLSX loaded successfully from:', src);
+                return true;
+            }
+        } catch (error) {
+            console.log(`❌ Failed to load from ${src}:`, error.message);
+        }
+    }
+
+    console.log('❌ All XLSX CDN sources failed');
+    return false;
+}
+
+// Helper function to load script dynamically
+function loadScript(src) {
     return new Promise((resolve, reject) => {
-        if (typeof XLSX !== 'undefined') {
-            resolve();
+        // Check if script is already loaded
+        const existingScript = document.querySelector(`script[src="${src}"]`);
+        if (existingScript) {
+            resolve(true);
             return;
         }
-        
+
         const script = document.createElement('script');
-        script.src = 'https://unpkg.com/xlsx@0.18.5/dist/xlsx.min.js';
+        script.src = src;
+        script.type = 'text/javascript';
+        
         script.onload = () => {
-            console.log('XLSX loaded dynamically');
-            resolve();
+            console.log('✅ Script loaded successfully:', src);
+            resolve(true);
         };
+        
         script.onerror = () => {
-            console.error('Failed to load XLSX dynamically');
-            reject(new Error('Failed to load XLSX library'));
+            console.log('❌ Failed to load script:', src);
+            document.head.removeChild(script);
+            reject(new Error(`Failed to load script: ${src}`));
         };
+        
         document.head.appendChild(script);
+        
+        // Timeout after 10 seconds
+        setTimeout(() => {
+            if (script.parentNode) {
+                document.head.removeChild(script);
+                reject(new Error(`Timeout loading script: ${src}`));
+            }
+        }, 10000);
     });
 }
 
@@ -780,22 +847,49 @@ async function downloadAsCSV() {
             return;
         }
 
-        // Create CSV content
-        let csvContent = "RINGKASAN ANALITIK KEHADIRAN\n\n";
+        // Create comprehensive CSV content with multiple sheets equivalent
+        let csvContent = '';
+        
+        // Sheet 1 equivalent: Summary
+        csvContent += "RINGKASAN ANALITIK KEHADIRAN\n";
+        csvContent += "=".repeat(50) + "\n";
         csvContent += "Metrik,Jumlah,Persentase\n";
         csvContent += `Total Kehadiran,${data.summary.totalRecords},100%\n`;
         csvContent += `Hadir,${data.summary.hadir},${data.summary.hadirPercent}%\n`;
         csvContent += `Tugas,${data.summary.tugas},${data.summary.tugasPercent}%\n`;
         csvContent += `Tidak Hadir,${data.summary.tidak},${data.summary.tidakPercent}%\n\n`;
         
+        // Sheet 2 equivalent: Teacher Performance
+        csvContent += "KEHADIRAN PER GURU\n";
+        csvContent += "=".repeat(50) + "\n";
+        csvContent += "Guru,Hadir,Tugas,Tidak Hadir,Total,Persentase Hadir\n";
+        Object.entries(data.byTeacher).forEach(([teacher, stats]) => {
+            const percent = stats.total > 0 ? ((stats.hadir / stats.total) * 100).toFixed(1) : 0;
+            csvContent += `"${teacher}",${stats.hadir},${stats.tugas},${stats.tidak},${stats.total},${percent}%\n`;
+        });
+        csvContent += "\n";
+        
+        // Sheet 3 equivalent: Class Performance
+        csvContent += "KEHADIRAN PER KELAS\n";
+        csvContent += "=".repeat(50) + "\n";
+        csvContent += "Kelas,Hadir,Tugas,Tidak Hadir,Total,Persentase Hadir\n";
+        Object.entries(data.byClass).forEach(([className, stats]) => {
+            const percent = stats.total > 0 ? ((stats.hadir / stats.total) * 100).toFixed(1) : 0;
+            csvContent += `"${className}",${stats.hadir},${stats.tugas},${stats.tidak},${stats.total},${percent}%\n`;
+        });
+        csvContent += "\n";
+        
+        // Sheet 4 equivalent: Raw Data
         csvContent += "DATA KEHADIRAN LENGKAP\n";
+        csvContent += "=".repeat(50) + "\n";
         csvContent += "Tanggal,Kelas,Mata Pelajaran,Guru,Status\n";
         data.rawData.forEach(row => {
-            csvContent += `${formatIndonesianDate(row.report_date)},${row.class_name},"${row.subject}","${row.teacher_name || 'N/A'}",${(row.status || 'Tidak Hadir').toUpperCase()}\n`;
+            csvContent += `${formatIndonesianDate(row.report_date)},"${row.class_name}","${row.subject}","${row.teacher_name || 'N/A'}",${(row.status || 'Tidak Hadir').toUpperCase()}\n`;
         });
 
-        // Download CSV
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        // Download CSV with UTF-8 BOM for proper Excel compatibility
+        const BOM = '\uFEFF';
+        const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
@@ -808,8 +902,9 @@ async function downloadAsCSV() {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        URL.revokeObjectURL(url);
         
-        alert('File CSV berhasil diunduh! (Excel library tidak tersedia, menggunakan format CSV sebagai alternatif)');
+        alert('✅ File CSV berhasil diunduh!\n\n📊 File berisi semua data analitik:\n• Ringkasan statistik\n• Data per guru\n• Data per kelas\n• Data kehadiran lengkap\n\n💡 File dapat dibuka di Excel atau Google Sheets\n\n📝 Format: CSV (Excel Compatible)');
         
     } catch (err) {
         console.error('❌ Error downloading CSV:', err);

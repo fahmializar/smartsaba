@@ -152,91 +152,106 @@ async function seedDatabaseIfEmpty() {
         
         console.log('🌱 Database is empty, seeding initial data...');
         
-        // Embedded school data (no file dependency)
-        const schoolData = {
-            "subjects": [
-                { "code": "PAIBP", "name": "Pendidikan Agama Islam dan Budi Pekerti" },
-                { "code": "PP", "name": "Pendidikan Pancasila" },
-                { "code": "IND", "name": "Bahasa Indonesia" },
-                { "code": "MAT", "name": "Matematika" },
-                { "code": "SEJ", "name": "Sejarah" },
-                { "code": "ING", "name": "Bahasa Inggris" },
-                { "code": "PJOK", "name": "Pendidikan Jasmani Olahraga dan Kesehatan" },
-                { "code": "INF", "name": "Informatika" },
-                { "code": "SB", "name": "Seni Budaya" },
-                { "code": "SUN", "name": "Bahasa Sunda" },
-                { "code": "BIO", "name": "Biologi" },
-                { "code": "FIS", "name": "Fisika" },
-                { "code": "KIM", "name": "Kimia" },
-                { "code": "EKO", "name": "Ekonomi" },
-                { "code": "GEO", "name": "Geografi" },
-                { "code": "SOS", "name": "Sosiologi" },
-                { "code": "MAT TL", "name": "Matematika Tingkat Lanjut" },
-                { "code": "BIO TL", "name": "Biologi Tingkat Lanjut" },
-                { "code": "FIS TL", "name": "Fisika Tingkat Lanjut" },
-                { "code": "KIM TL", "name": "Kimia Tingkat Lanjut" },
-                { "code": "EKO TL", "name": "Ekonomi Tingkat Lanjut" },
-                { "code": "GEO TL", "name": "Geografi Tingkat Lanjut" },
-                { "code": "SOS TL", "name": "Sosiologi Tingkat Lanjut" },
-                { "code": "SEJ TL", "name": "Sejarah Tingkat Lanjut" },
-                { "code": "ING TL", "name": "Bahasa Inggris Tingkat Lanjut" },
-                { "code": "PKWU", "name": "Prakarya dan Kewirausahaan" },
-                { "code": "BK", "name": "Bimbingan Konseling" }
-            ],
-            "teachers": [
-                "Deni Kusumawardani, S.Pd.",
-                "Gilang Cahya Gumilar, S.E.",
-                "Aam Amilasari, S.Pd.",
-                "Tuti Ella Maryati, S.Pd.",
-                "Yeti Sumiati, S.Pd.",
-                "Pepen Supendi, S.Pd., M.M.",
-                "Drs. Cucu Ansorulloh., M.Pd.",
-                "Eneng Hesti, S.Pd",
-                "Fahmi Alizar Nur Fachrudin, S.Pd.",
-                "Idvan Aprizal Bintara, S.Pd.",
-                "Leli Septiani, S.Pd",
-                "Mamat Rahmat, S.Pd",
-                "Nisha Hanifatul Fauziah, S.Pd",
-                "Novi Kartiani, S.Pd",
-                "Riska Meylia Eriani, S.Pd",
-                "Yakinthan Bathin R. S.Pd",
-                "Silmi Faris, S.Pd",
-                "Kartika Andriani, S.Pd.",
-                "Napiin Nurohman, S.Pd.",
-                "Muhammad Heru Haerudin, S.Pd",
-                "Susilawati S.Pd",
-                "Fuji Novia, S.Pd",
-                "Deny Rahman Samsyu, S.Pd",
-                "Nuryani, S.Pd.I",
-                "Virda Ayu Purwanti, S.Pd.",
-                "Dadan Darsono, S.Pd.",
-                "Fery Insan Firdaus, S.Pd.",
-                "Rudi, S.Si",
-                "Lulus Sri Rahayu, S.Pd",
-                "Deni Muhamad Ikbal, S.Pd",
-                "Nuni Nuraeni, S.Pd.I.",
-                "Iing Solihin, S.Pd",
-                "Deden Sugianto, S.Pd.",
-                "Muhammad Ulil Albab, S.Pd.",
-                "Yayan Aom Heryanto, S.Pd.",
-                "Maman Jayusman, S.E., M.M.",
-                "Chintia Wulan Sari, S.Pd.",
-                "Desi Novianti, S.Pd.",
-                "Diding Suyana, S.S.",
-                "Mela Herna Melani, S.Pd.I.",
-                "Revi Indika, S.Pd.",
-                "Juhum Humaidil Aripin, S. Ag",
-                "Dicky Nurdianzah, S.Pd.",
-                "Anneu Meilina Restu, S.Pd.",
-                "Iis Siti Aisyah, S.Pd.",
-                "Wida Sri Purnamasari, S.Pd.",
-                "Ria Puspitasari, S.Pd.",
-                "Mela Siti Padliah, S.Pd.",
-                "Aam Amaruloh, S.Pd.",
-                "Danny Muh. Ramadhani, M.Pd.",
-                "Jajang Nurjaman, S.Pd.",
-                "Yogi Faisal Fahmi, S.Pd."
-            ],
+        // Load school data from JSON file first, then fallback to embedded data
+        let schoolData;
+        try {
+            const fs = require('fs');
+            const path = require('path');
+            const jsonPath = path.join(__dirname, 'data', 'school-data.json');
+            if (fs.existsSync(jsonPath)) {
+                const jsonData = fs.readFileSync(jsonPath, 'utf8');
+                schoolData = JSON.parse(jsonData);
+                console.log('✅ Loaded school data from JSON file');
+            } else {
+                throw new Error('JSON file not found');
+            }
+        } catch (error) {
+            console.log('⚠️ Could not load JSON file, using embedded data:', error.message);
+            // Fallback to embedded data
+            schoolData = {
+                "subjects": [
+                    { "code": "PAIBP", "name": "Pendidikan Agama Islam dan Budi Pekerti" },
+                    { "code": "PP", "name": "Pendidikan Pancasila" },
+                    { "code": "IND", "name": "Bahasa Indonesia" },
+                    { "code": "MAT", "name": "Matematika" },
+                    { "code": "SEJ", "name": "Sejarah" },
+                    { "code": "ING", "name": "Bahasa Inggris" },
+                    { "code": "PJOK", "name": "Pendidikan Jasmani Olahraga dan Kesehatan" },
+                    { "code": "INF", "name": "Informatika" },
+                    { "code": "SB", "name": "Seni Budaya" },
+                    { "code": "SUN", "name": "Bahasa Sunda" },
+                    { "code": "BIO", "name": "Biologi" },
+                    { "code": "FIS", "name": "Fisika" },
+                    { "code": "KIM", "name": "Kimia" },
+                    { "code": "EKO", "name": "Ekonomi" },
+                    { "code": "GEO", "name": "Geografi" },
+                    { "code": "SOS", "name": "Sosiologi" },
+                    { "code": "MAT TL", "name": "Matematika Tingkat Lanjut" },
+                    { "code": "BIO TL", "name": "Biologi Tingkat Lanjut" },
+                    { "code": "FIS TL", "name": "Fisika Tingkat Lanjut" },
+                    { "code": "KIM TL", "name": "Kimia Tingkat Lanjut" },
+                    { "code": "EKO TL", "name": "Ekonomi Tingkat Lanjut" },
+                    { "code": "GEO TL", "name": "Geografi Tingkat Lanjut" },
+                    { "code": "SOS TL", "name": "Sosiologi Tingkat Lanjut" },
+                    { "code": "SEJ TL", "name": "Sejarah Tingkat Lanjut" },
+                    { "code": "ING TL", "name": "Bahasa Inggris Tingkat Lanjut" },
+                    { "code": "PKWU", "name": "Prakarya dan Kewirausahaan" },
+                    { "code": "BK", "name": "Bimbingan Konseling" }
+                ],
+                "teachers": [
+                    "Deni Kusumawardani, S.Pd.",
+                    "Gilang Cahya Gumilar, S.E.",
+                    "Aam Amilasari, S.Pd.",
+                    "Tuti Ella Maryati, S.Pd.",
+                    "Yeti Sumiati, S.Pd.",
+                    "Pepen Supendi, S.Pd., M.M.",
+                    "Drs. Cucu Ansorulloh., M.Pd.",
+                    "Eneng Hesti, S.Pd",
+                    "Fahmi Alizar Nur Fachrudin, S.Pd.",
+                    "Idvan Aprizal Bintara, S.Pd.",
+                    "Leli Septiani, S.Pd",
+                    "Mamat Rahmat, S.Pd",
+                    "Nisha Hanifatul Fauziah, S.Pd",
+                    "Novi Kartiani, S.Pd",
+                    "Riska Meylia Eriani, S.Pd",
+                    "Yakinthan Bathin R. S.Pd",
+                    "Silmi Faris, S.Pd",
+                    "Kartika Andriani, S.Pd.",
+                    "Napiin Nurohman, S.Pd.",
+                    "Muhammad Heru Haerudin, S.Pd",
+                    "Susilawati S.Pd",
+                    "Fuji Novia, S.Pd",
+                    "Deny Rahman Samsyu, S.Pd",
+                    "Nuryani, S.Pd.I",
+                    "Virda Ayu Purwanti, S.Pd.",
+                    "Dadan Darsono, S.Pd.",
+                    "Fery Insan Firdaus, S.Pd.",
+                    "Rudi, S.Si",
+                    "Lulus Sri Rahayu, S.Pd",
+                    "Deni Muhamad Ikbal, S.Pd",
+                    "Nuni Nuraeni, S.Pd.I.",
+                    "Iing Solihin, S.Pd",
+                    "Deden Sugianto, S.Pd.",
+                    "Muhammad Ulil Albab, S.Pd.",
+                    "Yayan Aom Heryanto, S.Pd.",
+                    "Maman Jayusman, S.E., M.M.",
+                    "Chintia Wulan Sari, S.Pd.",
+                    "Desi Novianti, S.Pd.",
+                    "Diding Suyana, S.S.",
+                    "Mela Herna Melani, S.Pd.I.",
+                    "Revi Indika, S.Pd.",
+                    "Juhum Humaidil Aripin, S. Ag",
+                    "Dicky Nurdianzah, S.Pd.",
+                    "Anneu Meilina Restu, S.Pd.",
+                    "Iis Siti Aisyah, S.Pd.",
+                    "Wida Sri Purnamasari, S.Pd.",
+                    "Ria Puspitasari, S.Pd.",
+                    "Mela Siti Padliah, S.Pd.",
+                    "Aam Amaruloh, S.Pd.",
+                    "Danny Muh. Ramadhani, M.Pd.",
+                    "Jajang Nurjaman, S.Pd.",
+                    "Yogi Faisal Fahmi, S.Pd."
+                ],
             "time_slots": [
                 { "period": 1, "label": "Jam 1", "start_time": "06:30", "end_time": "07:15" },
                 { "period": 2, "label": "Jam 2", "start_time": "07:15", "end_time": "08:00" },
@@ -287,6 +302,7 @@ async function seedDatabaseIfEmpty() {
                 { "class_name": "XII.EBIM.3", "grade": "XII", "section": "EBIM.3" }
             ]
         };
+        }
         
         // Check if admin exists
         const adminCheck = await pool.query('SELECT * FROM users WHERE username = $1', ['admin']);
@@ -1473,6 +1489,151 @@ app.get('/api/seed-database', async (req, res) => {
     } catch (err) {
         console.error('Seeding error:', err);
         res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// 17. API to sync data from JSON file (for updating teacher/subject data)
+app.post('/api/sync-data', async (req, res) => {
+    try {
+        console.log('🔄 Starting data sync from JSON file...');
+        
+        // Load school data from JSON file
+        const fs = require('fs');
+        const path = require('path');
+        const jsonPath = path.join(__dirname, 'data', 'school-data.json');
+        
+        if (!fs.existsSync(jsonPath)) {
+            return res.status(404).json({ 
+                success: false, 
+                message: 'school-data.json file not found' 
+            });
+        }
+        
+        const jsonData = fs.readFileSync(jsonPath, 'utf8');
+        const schoolData = JSON.parse(jsonData);
+        
+        console.log('📊 JSON data loaded:', {
+            subjects: schoolData.subjects?.length || 0,
+            teachers: schoolData.teachers?.length || 0,
+            classes: schoolData.classes?.length || 0
+        });
+        
+        // Update subjects (using UPSERT to avoid conflicts)
+        if (schoolData.subjects) {
+            for (const subject of schoolData.subjects) {
+                await pool.query(
+                    'INSERT INTO subjects (code, name) VALUES ($1, $2) ON CONFLICT (code) DO UPDATE SET name = $2',
+                    [subject.code, subject.name]
+                );
+            }
+            console.log('✅ Subjects updated');
+        }
+        
+        // Update teachers (using UPSERT to avoid conflicts)
+        if (schoolData.teachers) {
+            for (const teacher of schoolData.teachers) {
+                await pool.query(
+                    'INSERT INTO teachers (teacher_name) VALUES ($1) ON CONFLICT (teacher_name) DO NOTHING',
+                    [teacher]
+                );
+            }
+            console.log('✅ Teachers updated');
+        }
+        
+        // Update classes (using UPSERT to avoid conflicts)
+        if (schoolData.classes) {
+            for (const cls of schoolData.classes) {
+                await pool.query(
+                    'INSERT INTO classes (class_name, grade, section) VALUES ($1, $2, $3) ON CONFLICT (class_name) DO UPDATE SET grade = $2, section = $3',
+                    [cls.class_name, cls.grade, cls.section]
+                );
+            }
+            console.log('✅ Classes updated');
+        }
+        
+        // Verify counts
+        const [subjectsResult, teachersResult, classesResult] = await Promise.all([
+            pool.query('SELECT COUNT(*) as count FROM subjects'),
+            pool.query('SELECT COUNT(*) as count FROM teachers'),
+            pool.query('SELECT COUNT(*) as count FROM classes')
+        ]);
+        
+        res.json({ 
+            success: true, 
+            message: 'Data synchronized successfully from JSON file',
+            data: {
+                subjects: subjectsResult.rows[0].count,
+                teachers: teachersResult.rows[0].count,
+                classes: classesResult.rows[0].count
+            }
+        });
+        
+    } catch (err) {
+        console.error('❌ Error syncing data:', err);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Failed to sync data: ' + err.message 
+        });
+    }
+});
+
+// 18. API to get attendance status for admin dashboard
+app.get('/api/attendance-status', async (req, res) => {
+    try {
+        const { date } = req.query;
+        const targetDate = date || new Date().toISOString().split('T')[0];
+        
+        console.log('📊 Getting attendance status for date:', targetDate);
+        
+        // Get all classes
+        const classesResult = await pool.query('SELECT * FROM classes ORDER BY class_name');
+        const allClasses = classesResult.rows;
+        
+        // Get attendance reports for the target date
+        const attendanceResult = await pool.query(
+            'SELECT DISTINCT class_name, MAX(timestamp) as last_report_time, COUNT(DISTINCT subject) as subject_count FROM attendance WHERE DATE(report_date) = $1 GROUP BY class_name',
+            [targetDate]
+        );
+        
+        // Create a map of reported classes
+        const reportedClasses = {};
+        attendanceResult.rows.forEach(row => {
+            reportedClasses[row.class_name] = {
+                lastReportTime: row.last_report_time,
+                subjectCount: parseInt(row.subject_count)
+            };
+        });
+        
+        // Build status for each class
+        const statusData = allClasses.map(cls => {
+            const hasReported = reportedClasses[cls.class_name];
+            return {
+                className: cls.class_name,
+                status: hasReported ? 'reported' : 'pending',
+                lastReportTime: hasReported ? hasReported.lastReportTime : null,
+                subjectCount: hasReported ? hasReported.subjectCount : 0
+            };
+        });
+        
+        const summary = {
+            total: allClasses.length,
+            reported: statusData.filter(s => s.status === 'reported').length,
+            pending: statusData.filter(s => s.status === 'pending').length
+        };
+        
+        res.json({
+            success: true,
+            date: targetDate,
+            summary: summary,
+            classes: statusData
+        });
+        
+    } catch (err) {
+        console.error('❌ Error getting attendance status:', err);
+        res.status(500).json({ 
+            success: false, 
+            message: err.message 
+        });
     }
 });
 

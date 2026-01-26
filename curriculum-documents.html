@@ -148,6 +148,7 @@
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
+            margin-top: 15px;
         }
 
         .action-buttons .btn-preview,
@@ -156,6 +157,81 @@
             min-width: 80px;
             text-align: center;
             font-size: 0.85em;
+            padding: 10px 12px;
+            border-radius: 6px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .btn-preview {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+        }
+
+        .btn-preview:hover {
+            background: linear-gradient(135deg, #2980b9, #1f5f8b);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn-download {
+            background: linear-gradient(135deg, #27ae60, #229954);
+            color: white;
+        }
+
+        .btn-download:hover {
+            background: linear-gradient(135deg, #229954, #1e7e34);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(39, 174, 96, 0.3);
+        }
+
+        /* Google Drive Embedded Folder Styling */
+        .drive-folder-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            overflow: hidden;
+            border: 1px solid #e0e0e0;
+        }
+
+        .drive-folder-header {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .drive-folder-header h3 {
+            margin: 0;
+            font-size: 1.2em;
+            font-weight: 600;
+        }
+
+        .drive-folder-header i {
+            font-size: 1.5em;
+        }
+
+        .drive-iframe {
+            border: none;
+            width: 100%;
+            height: 500px;
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .drive-iframe {
+                height: 400px;
+            }
         }
 
         /* Document name truncation */
@@ -203,53 +279,6 @@
         .document-size {
             color: #95a5a6;
             font-size: 0.85em;
-        }
-
-        .document-actions {
-            margin-top: 15px;
-            display: flex;
-            gap: 10px;
-        }
-
-        .btn-download {
-            flex: 1;
-            padding: 10px;
-            background: #27ae60;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 0.95em;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-            transition: background 0.3s;
-            text-decoration: none;
-        }
-
-        .btn-download:hover {
-            background: #229954;
-        }
-
-        .btn-preview {
-            flex: 1;
-            padding: 10px;
-            background: #3498db;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 0.95em;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-            transition: background 0.3s;
-        }
-
-        .btn-preview:hover {
-            background: #2980b9;
         }
 
         .loading {
@@ -528,6 +557,18 @@
             </button>
         </div>
 
+        <!-- Google Drive Embedded Folder View -->
+        <div class="drive-folder-container">
+            <div class="drive-folder-header">
+                <i class="fas fa-folder-open"></i>
+                <h3>Folder Google Drive - Dokumen Kurikulum</h3>
+            </div>
+            <iframe 
+                src="https://drive.google.com/embeddedfolderview?id=1ZeQnYBcQqJZ3_E2FRU9igtKdtknCm9gO#list" 
+                class="drive-iframe">
+            </iframe>
+        </div>
+
         <div id="documentsContainer" class="documents-grid">
             <div class="loading">
                 <i class="fas fa-spinner"></i>
@@ -734,23 +775,19 @@
                         </a>
                     `;
                 } else {
-                    // For actual files, provide multiple options
+                    // For actual files, provide both preview and download options
+                    const fileId = extractGoogleDriveFileId(doc.webViewLink || doc.id);
+                    const previewUrl = fileId ? `https://drive.google.com/file/d/${fileId}/preview` : doc.previewLink;
+                    const downloadUrl = fileId ? `https://drive.google.com/uc?export=download&id=${fileId}` : doc.downloadLink || doc.webViewLink;
+                    
                     actionButtons = `
-                        <div class="action-buttons">
-                            ${doc.previewLink ? `
-                                <button class="btn-preview" onclick="previewDocument('${doc.previewLink}', '${doc.name.replace(/'/g, "\\'")}')">
-                                    <i class="fas fa-eye"></i> Pratinjau
-                                </button>
-                            ` : ''}
-                            ${doc.downloadLink ? `
-                                <a href="${doc.downloadLink}" target="_blank" class="btn-download">
-                                    <i class="fas fa-download"></i> Download
-                                </a>
-                            ` : `
-                                <a href="${doc.webViewLink}" target="_blank" class="btn-download">
-                                    <i class="fas fa-external-link-alt"></i> Lihat
-                                </a>
-                            `}
+                        <div class="action-buttons" style="display: flex; gap: 8px; margin-top: 15px;">
+                            <button class="btn-preview" onclick="previewDocument('${previewUrl}', '${doc.name.replace(/'/g, "\\'")}')">
+                                <i class="fas fa-eye"></i> Pratinjau
+                            </button>
+                            <a href="${downloadUrl}" target="_blank" class="btn-download">
+                                <i class="fas fa-download"></i> Download
+                            </a>
                         </div>
                     `;
                 }
@@ -772,9 +809,7 @@
                             ${!isFolder && doc.size ? `<div class="document-size">
                                 <i class="fas fa-database"></i> ${formatBytes(doc.size)}
                             </div>` : ''}
-                            <div class="document-actions">
-                                ${actionButtons}
-                            </div>
+                            ${actionButtons}
                         </div>
                     </div>
                 `;
@@ -847,11 +882,11 @@
             
             document.getElementById('previewTitle').textContent = 'Pratinjau: ' + name;
             
-            // Handle different types of preview links
+            // Use the provided preview link directly (it should already be formatted correctly)
             let previewUrl = viewLink;
             
-            // If it's a Google Drive file ID, create proper preview URL
-            if (viewLink.includes('/file/d/') || viewLink.includes('id=')) {
+            // Fallback: if it's not a preview URL, try to convert it
+            if (!viewLink.includes('/preview') && !viewLink.includes('embeddedfolderview')) {
                 const fileId = extractGoogleDriveFileId(viewLink);
                 if (fileId) {
                     previewUrl = `https://drive.google.com/file/d/${fileId}/preview`;
@@ -865,7 +900,10 @@
         }
 
         // Extract Google Drive file ID from various URL formats
+        // Extract Google Drive file ID from various URL formats
         function extractGoogleDriveFileId(url) {
+            if (!url) return null;
+            
             try {
                 // Pattern 1: https://drive.google.com/file/d/FILE_ID/view
                 let match = url.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
@@ -875,7 +913,11 @@
                 match = url.match(/[?&]id=([a-zA-Z0-9-_]+)/);
                 if (match) return match[1];
                 
-                // Pattern 3: Direct file ID
+                // Pattern 3: https://drive.google.com/open?id=FILE_ID
+                match = url.match(/[?&]id=([a-zA-Z0-9-_]+)/);
+                if (match) return match[1];
+                
+                // Pattern 4: Direct file ID
                 if (/^[a-zA-Z0-9-_]+$/.test(url)) return url;
                 
                 return null;
