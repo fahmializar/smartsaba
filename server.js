@@ -43,29 +43,22 @@ pool.on('connect', () => {
 // 2. Initialize PostgreSQL Tables
 async function initializeDatabase() {
     try {
-        // DROP all tables to start fresh
-        await pool.query(`DROP TABLE IF EXISTS attendance CASCADE`);
-        await pool.query(`DROP TABLE IF EXISTS schedules CASCADE`);
-        await pool.query(`DROP TABLE IF EXISTS time_slots CASCADE`);
-        await pool.query(`DROP TABLE IF EXISTS subjects CASCADE`);
-        await pool.query(`DROP TABLE IF EXISTS teachers CASCADE`);
-        await pool.query(`DROP TABLE IF EXISTS classes CASCADE`);
-        await pool.query(`DROP TABLE IF EXISTS users CASCADE`);
+        // Create tables only if they don't exist (preserve existing data)
         
         // Create fresh users table with correct schema
         await pool.query(`
-            CREATE TABLE users (
+            CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
                 username VARCHAR(255) UNIQUE NOT NULL,
                 password VARCHAR(255) NOT NULL,
                 role VARCHAR(50) NOT NULL
             )
         `);
-        console.log('✓ Users table created');
+        console.log('✓ Users table created/verified');
 
         // Create classes table
         await pool.query(`
-            CREATE TABLE classes (
+            CREATE TABLE IF NOT EXISTS classes (
                 id SERIAL PRIMARY KEY,
                 class_name VARCHAR(255) UNIQUE NOT NULL,
                 grade VARCHAR(50),
@@ -76,7 +69,7 @@ async function initializeDatabase() {
 
         // Create teachers table
         await pool.query(`
-            CREATE TABLE teachers (
+            CREATE TABLE IF NOT EXISTS teachers (
                 id SERIAL PRIMARY KEY,
                 teacher_name VARCHAR(255) UNIQUE NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -85,7 +78,7 @@ async function initializeDatabase() {
 
         // Create subjects table
         await pool.query(`
-            CREATE TABLE subjects (
+            CREATE TABLE IF NOT EXISTS subjects (
                 id SERIAL PRIMARY KEY,
                 code VARCHAR(50) UNIQUE NOT NULL,
                 name VARCHAR(255) NOT NULL,
@@ -95,7 +88,7 @@ async function initializeDatabase() {
 
         // Create schedules table
         await pool.query(`
-            CREATE TABLE schedules (
+            CREATE TABLE IF NOT EXISTS schedules (
                 id SERIAL PRIMARY KEY,
                 class_name VARCHAR(255) NOT NULL,
                 day VARCHAR(50) NOT NULL,
@@ -111,7 +104,7 @@ async function initializeDatabase() {
 
         // Create time_slots table
         await pool.query(`
-            CREATE TABLE time_slots (
+            CREATE TABLE IF NOT EXISTS time_slots (
                 id SERIAL PRIMARY KEY,
                 period INTEGER UNIQUE NOT NULL,
                 label VARCHAR(50),
@@ -123,7 +116,7 @@ async function initializeDatabase() {
 
         // Create attendance table
         await pool.query(`
-            CREATE TABLE attendance (
+            CREATE TABLE IF NOT EXISTS attendance (
                 id SERIAL PRIMARY KEY,
                 class_name VARCHAR(255) NOT NULL,
                 report_date DATE NOT NULL,
@@ -138,16 +131,27 @@ async function initializeDatabase() {
 
         console.log('✓ Database tables created/verified');
 
-        // Seed initial data
-        await seedDatabase();
+        // Seed initial data only if tables are empty
+        await seedDatabaseIfEmpty();
     } catch (err) {
         console.error('Error initializing database:', err.message);
     }
 }
 
-// Seed initial data
-async function seedDatabase() {
+// Seed initial data only if tables are empty
+async function seedDatabaseIfEmpty() {
     try {
+        // Check if users table has data
+        const userCount = await pool.query('SELECT COUNT(*) as count FROM users');
+        const hasUsers = parseInt(userCount.rows[0].count) > 0;
+        
+        if (hasUsers) {
+            console.log('✓ Database already has data, skipping seeding');
+            return;
+        }
+        
+        console.log('🌱 Database is empty, seeding initial data...');
+        
         // Embedded school data (no file dependency)
         const schoolData = {
             "subjects": [
@@ -675,11 +679,29 @@ app.delete('/api/delete-all-attendance/:className', async (req, res) => {
 // 14. API Get Curriculum Documents from Google Drive
 app.get('/api/curriculum-documents', async (req, res) => {
     try {
-        // Using public folder - no authentication needed
+        // Since Google Drive API requires authentication and is complex to set up,
+        // we'll provide a direct link to the Google Drive folder with a message
         const folderId = '1ZeQnYBcQqJZ3_E2FRU9igtKdtknCm9gO';
+        const driveLink = `https://drive.google.com/drive/folders/${folderId}?usp=sharing`;
         
-        // Try alternate method directly (most reliable for public folders)
-        return getCurriculumDocumentsAlternate(res);
+        // Return a response that tells users to visit the Google Drive folder directly
+        return res.json({
+            success: true,
+            documents: [
+                {
+                    id: 'google-drive-folder',
+                    name: '📁 Klik untuk membuka Folder Dokumen Kurikulum',
+                    mimeType: 'application/folder',
+                    createdTime: new Date().toISOString(),
+                    size: 0,
+                    webViewLink: driveLink,
+                    isFolder: true
+                }
+            ],
+            count: 1,
+            message: 'Klik dokumen di atas untuk membuka folder Google Drive yang berisi semua dokumen kurikulum.',
+            driveLink: driveLink
+        });
 
     } catch (err) {
         console.error('Error fetching curriculum documents:', err);

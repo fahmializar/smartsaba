@@ -72,6 +72,23 @@
             box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
         }
 
+        .folder-card {
+            border-left-color: #f39c12;
+        }
+
+        .folder-card .document-header {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+        }
+
+        .btn-folder {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+        }
+
+        .btn-folder:hover {
+            background: linear-gradient(135deg, #e67e22, #d35400);
+        }
+
         .document-header {
             background: linear-gradient(135deg, #3498db, #2980b9);
             color: white;
@@ -542,32 +559,17 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    // If no documents found, try sample data
-                    if (data.documents.length === 0) {
-                        console.log('No documents in Google Drive, loading sample data...');
-                        const sampleResponse = await fetch('/api/curriculum-documents-sample');
-                        const sampleData = await sampleResponse.json();
-                        
-                        if (sampleData.success) {
-                            allDocuments = sampleData.documents.sort((a, b) => {
-                                return new Date(b.createdTime) - new Date(a.createdTime);
-                            });
-                            filteredDocuments = [...allDocuments];
-                            renderDocuments();
-                            updateStats();
-                            
-                            // Show info message about sample data
-                            showInfoMessage('Menampilkan dokumen contoh. Upload file PDF ke Google Drive untuk menampilkan dokumen asli.');
-                            return;
-                        }
-                    }
-                    
                     allDocuments = data.documents.sort((a, b) => {
                         return new Date(b.createdTime) - new Date(a.createdTime);
                     });
                     filteredDocuments = [...allDocuments];
                     renderDocuments();
                     updateStats();
+                    
+                    // Show message if provided
+                    if (data.message) {
+                        showInfoMessage(data.message);
+                    }
                 } else {
                     showError('Gagal memuat dokumen: ' + data.error);
                 }
@@ -592,33 +594,40 @@
                 return;
             }
 
-            container.innerHTML = filteredDocuments.map((doc, index) => `
-                <div class="document-card">
-                    <div class="document-header">
-                        <div class="document-icon">
-                            <i class="fas fa-file-pdf"></i>
+            container.innerHTML = filteredDocuments.map((doc, index) => {
+                const isFolder = doc.isFolder || doc.mimeType === 'application/folder';
+                const icon = isFolder ? 'fas fa-folder' : 'fas fa-file-pdf';
+                const actionText = isFolder ? 'Buka Folder' : 'Download';
+                const actionIcon = isFolder ? 'fas fa-external-link-alt' : 'fas fa-download';
+                
+                return `
+                    <div class="document-card ${isFolder ? 'folder-card' : ''}">
+                        <div class="document-header">
+                            <div class="document-icon">
+                                <i class="${icon}"></i>
+                            </div>
+                        </div>
+                        <div class="document-body">
+                            <div class="document-name">${doc.name}</div>
+                            <div class="document-info">
+                                <i class="fas fa-calendar"></i>
+                                ${new Date(doc.createdTime).toLocaleDateString('id-ID')}
+                            </div>
+                            ${!isFolder ? `<div class="document-size">
+                                <i class="fas fa-database"></i> ${formatBytes(doc.size)}
+                            </div>` : ''}
+                            <div class="document-actions">
+                                <a href="${doc.webViewLink}" target="_blank" class="btn-download ${isFolder ? 'btn-folder' : ''}">
+                                    <i class="${actionIcon}"></i> ${actionText}
+                                </a>
+                                ${!isFolder ? `<button class="btn-preview" onclick="previewDocument('${doc.webViewLink}', '${doc.name.replace(/'/g, "\\'")}')">
+                                    <i class="fas fa-eye"></i> Pratinjau
+                                </button>` : ''}
+                            </div>
                         </div>
                     </div>
-                    <div class="document-body">
-                        <div class="document-name">${doc.name}</div>
-                        <div class="document-info">
-                            <i class="fas fa-calendar"></i>
-                            ${new Date(doc.createdTime).toLocaleDateString('id-ID')}
-                        </div>
-                        <div class="document-size">
-                            <i class="fas fa-database"></i> ${formatBytes(doc.size)}
-                        </div>
-                        <div class="document-actions">
-                            <a href="${doc.webViewLink}" target="_blank" class="btn-download">
-                                <i class="fas fa-download"></i> Download
-                            </a>
-                            <button class="btn-preview" onclick="previewDocument('${doc.webViewLink}', '${doc.name.replace(/'/g, "\\'")}')">
-                                <i class="fas fa-eye"></i> Pratinjau
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         // Search documents

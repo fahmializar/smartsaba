@@ -8,6 +8,18 @@ const API_BASE = window.location.origin + '/api';
 // 1. Initialize Dashboard
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Admin Dashboard Initializing...');
+    
+    // Test if functions are working
+    window.testFunction = function() {
+        console.log('✅ JavaScript is working!');
+        alert('JavaScript is working!');
+    };
+    
+    console.log('📋 Available functions:', {
+        showSection: typeof showSection,
+        loadReports: typeof loadReports,
+        loadAnalytics: typeof loadAnalytics
+    });
     checkAuth();
     initializeDashboard();
     setupEventListeners();
@@ -67,17 +79,39 @@ function setupEventListeners() {
 
 // 6. Navigate Menu
 function showSection(sectionId) {
+    console.log('showSection called with:', sectionId);
+    
     document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
     const target = document.getElementById(sectionId);
-    if (target) target.classList.add('active');
+    if (target) {
+        target.classList.add('active');
+        console.log('Section activated:', sectionId);
+    } else {
+        console.error('Section not found:', sectionId);
+    }
     
     document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
     const navItem = document.querySelector(`[onclick="showSection('${sectionId}')"]`);
-    if (navItem) navItem.classList.add('active');
+    if (navItem) {
+        navItem.classList.add('active');
+        console.log('Nav item activated for:', sectionId);
+    } else {
+        console.error('Nav item not found for:', sectionId);
+    }
     
     currentSection = sectionId;
-    if (sectionId === 'reports') loadReports();
-    else refreshAllData();
+    
+    // Handle section-specific initialization
+    if (sectionId === 'reports') {
+        loadReports();
+    } else if (sectionId === 'analytics') {
+        populateAnalyticsDropdowns();
+        loadAnalytics();
+    } else if (sectionId === 'attendance-status') {
+        initializeAttendanceStatus();
+    } else {
+        refreshAllData();
+    }
 }
 
 // 7. Load Statistics
@@ -560,9 +594,23 @@ async function downloadExcelAnalytics() {
         if (month) params.append('month', month);
         if (year) params.append('year', year);
 
+        console.log('📊 Fetching analytics data with params:', params.toString());
         const response = await fetch(`${API_BASE}/analytics?${params.toString()}`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         const data = await response.json();
+
+        console.log('📊 Analytics data received:', data);
+
+        // Check if XLSX library is loaded
+        if (typeof XLSX === 'undefined') {
+            throw new Error('XLSX library not loaded. Please refresh the page and try again.');
+        }
+
+        // Check if we have data
+        if (!data.summary || data.summary.totalRecords === 0) {
+            alert('Tidak ada data kehadiran untuk diunduh. Pastikan ada laporan kehadiran yang telah disubmit.');
+            return;
+        }
 
         // Prepare data for Excel
         const workbook = XLSX.utils.book_new();
@@ -625,8 +673,12 @@ async function downloadExcelAnalytics() {
         const filename = `Analitik_Kehadiran_${dateStr}.xlsx`;
 
         // Download
+        console.log('💾 Generating Excel file:', filename);
         XLSX.writeFile(workbook, filename);
-        console.log('✅ Excel file downloaded:', filename);
+        console.log('✅ Excel file downloaded successfully:', filename);
+        
+        // Show success message
+        alert(`File Excel berhasil diunduh: ${filename}`);
 
     } catch (err) {
         console.error('❌ Error downloading Excel:', err);
@@ -677,16 +729,6 @@ function populateAnalyticsDropdowns() {
     }).catch(err => console.error('Error loading analytics dropdowns:', err));
 }
 
-// 15. Update showSection to handle analytics
-const originalShowSection = showSection;
-showSection = function(sectionId) {
-    originalShowSection(sectionId);
-    if (sectionId === 'analytics') {
-        populateAnalyticsDropdowns();
-        loadAnalytics();
-    }
-};
-
 // 16. Logout
 function logout() {
     localStorage.removeItem('adminAuth');
@@ -705,4 +747,170 @@ function toggleSidebar() {
 // 18. Export Reports (placeholder)
 function exportReports() {
     alert('Fitur export akan segera hadir!');
+}
+
+// 15. Attendance Status Functions
+let allClasses = [];
+let attendanceStatusData = [];
+
+// Load attendance status for a specific date
+async function loadAttendanceStatus() {
+    try {
+        const selectedDate = document.getElementById('statusDate').value || new Date().toISOString().split('T')[0];
+        
+        console.log('📊 Loading attendance status for date:', selectedDate);
+        
+        // Load all classes
+        const classesResponse = await fetch(`${API_BASE}/classes`);
+        if (!classesResponse.ok) throw new Error('Failed to fetch classes');
+        allClasses = await classesResponse.json();
+        
+        // Load attendance reports for the selected date
+        const reportsResponse = await fetch(`${API_BASE}/all-reports`);
+        if (!reportsResponse.ok) throw new Error('Failed to fetch reports');
+        const allReports = await reportsResponse.json();
+        
+        // Filter reports for the selected date
+        const dateReports = allReports.filter(report => 
+            report.report_date === selectedDate
+        );
+        
+        // Group reports by class
+        const reportsByClass = {};
+        dateReports.forEach(report => {
+            if (!reportsByClass[report.class_name]) {
+                reportsByClass[report.class_name] = [];
+            }
+            reportsByClass[report.class_name].push(report);
+        });
+        
+        // Create attendance status data
+        attendanceStatusData = allClasses.map(cls => {
+            const classReports = reportsByClass[cls.class_name] || [];
+            const hasReports = classReports.length > 0;
+            const lastReportTime = hasReports ? 
+                Math.max(...classReports.map(r => new Date(r.timestamp).getTime())) : null;
+            
+            return {
+                className: cls.class_name,
+                status: hasReports ? 'reported' : 'pending',
+                lastReportTime: lastReportTime ? new Date(lastReportTime) : null,
+                subjectCount: classReports.length,
+                reports: classReports
+            };
+        });
+        
+        updateAttendanceStatusSummary();
+        renderAttendanceStatusTable();
+        
+    } catch (error) {
+        console.error('❌ Error loading attendance status:', error);
+        showError('Gagal memuat status kehadiran: ' + error.message);
+    }
+}
+
+// Update summary cards
+function updateAttendanceStatusSummary() {
+    const reportedCount = attendanceStatusData.filter(item => item.status === 'reported').length;
+    const pendingCount = attendanceStatusData.filter(item => item.status === 'pending').length;
+    const totalCount = attendanceStatusData.length;
+    
+    document.getElementById('reportedCount').textContent = reportedCount;
+    document.getElementById('pendingCount').textContent = pendingCount;
+    document.getElementById('totalClasses').textContent = totalCount;
+}
+
+// Render attendance status table
+function renderAttendanceStatusTable() {
+    const tbody = document.getElementById('attendanceStatusTableBody');
+    const filter = document.getElementById('statusFilter').value;
+    
+    let filteredData = attendanceStatusData;
+    if (filter !== 'all') {
+        filteredData = attendanceStatusData.filter(item => item.status === filter);
+    }
+    
+    if (filteredData.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="loading">
+                    <i class="fas fa-info-circle"></i> Tidak ada data untuk ditampilkan
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = filteredData.map(item => {
+        const statusBadge = item.status === 'reported' ? 
+            '<span class="status-badge reported"><i class="fas fa-check-circle"></i> Sudah Lapor</span>' :
+            '<span class="status-badge pending"><i class="fas fa-clock"></i> Belum Lapor</span>';
+        
+        const lastReportTime = item.lastReportTime ? 
+            item.lastReportTime.toLocaleString('id-ID') : '-';
+        
+        const actions = item.status === 'reported' ? 
+            `<button class="action-btn view-btn" onclick="viewClassReports('${item.className}')">
+                <i class="fas fa-eye"></i> Lihat
+            </button>` :
+            `<button class="action-btn remind-btn" onclick="remindClass('${item.className}')">
+                <i class="fas fa-bell"></i> Ingatkan
+            </button>`;
+        
+        return `
+            <tr>
+                <td><strong>${item.className}</strong></td>
+                <td>${statusBadge}</td>
+                <td>${lastReportTime}</td>
+                <td>${item.subjectCount} mata pelajaran</td>
+                <td>${actions}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Filter attendance status table
+function filterAttendanceStatus() {
+    renderAttendanceStatusTable();
+}
+
+// View class reports (redirect to reports section with filter)
+function viewClassReports(className) {
+    // Set the class filter in reports section
+    document.getElementById('filterClass').value = className;
+    
+    // Switch to reports section
+    showSection('reports');
+    
+    // Load reports with the class filter
+    loadReports();
+}
+
+// Remind class (placeholder function - could send notification/email)
+function remindClass(className) {
+    const selectedDate = document.getElementById('statusDate').value || new Date().toISOString().split('T')[0];
+    const formattedDate = new Date(selectedDate).toLocaleDateString('id-ID');
+    
+    if (confirm(`Kirim pengingat ke perwakilan kelas ${className} untuk melaporkan kehadiran tanggal ${formattedDate}?`)) {
+        // Here you could implement actual notification sending
+        // For now, just show a success message
+        alert(`Pengingat telah dikirim ke perwakilan kelas ${className}`);
+        
+        // You could add API call here to send actual notification
+        // await fetch(`${API_BASE}/send-reminder`, {
+        //     method: 'POST',
+        //     headers: { 'Content-Type': 'application/json' },
+        //     body: JSON.stringify({ className, date: selectedDate })
+        // });
+    }
+}
+
+// Initialize attendance status when section is shown
+function initializeAttendanceStatus() {
+    // Set today's date as default
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('statusDate').value = today;
+    
+    // Load initial data
+    loadAttendanceStatus();
 }

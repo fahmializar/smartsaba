@@ -40,6 +40,10 @@
                     <i class="fas fa-tachometer-alt"></i>
                     <span>Overview</span>
                 </a>
+                <a href="#attendance-status" class="nav-item" onclick="showSection('attendance-status')">
+                    <i class="fas fa-check-circle"></i>
+                    <span>Status Kehadiran</span>
+                </a>
                 <a href="#reports" class="nav-item" onclick="showSection('reports')">
                     <i class="fas fa-clipboard-list"></i>
                     <span>Laporan Kehadiran</span>
@@ -103,6 +107,86 @@
                     <button class="view-all-btn" onclick="showSection('reports')">
                         <i class="fas fa-eye"></i> Lihat Semua Laporan
                     </button>
+                </div>
+            </section>
+
+            <section id="attendance-status" class="content-section">
+                <div class="section-header">
+                    <h2>Status Kehadiran Kelas</h2>
+                    <p>Monitor kelas mana yang sudah dan belum melaporkan kehadiran hari ini</p>
+                </div>
+
+                <div class="attendance-status-controls">
+                    <div class="date-selector">
+                        <label for="statusDate">Pilih Tanggal:</label>
+                        <input type="date" id="statusDate" onchange="loadAttendanceStatus()">
+                    </div>
+                    <button class="refresh-btn" onclick="loadAttendanceStatus()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+
+                <div class="status-summary">
+                    <div class="summary-card reported">
+                        <div class="summary-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="summary-info">
+                            <h3 id="reportedCount">0</h3>
+                            <p>Kelas Sudah Lapor</p>
+                        </div>
+                    </div>
+                    <div class="summary-card pending">
+                        <div class="summary-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="summary-info">
+                            <h3 id="pendingCount">0</h3>
+                            <p>Kelas Belum Lapor</p>
+                        </div>
+                    </div>
+                    <div class="summary-card total">
+                        <div class="summary-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="summary-info">
+                            <h3 id="totalClasses">0</h3>
+                            <p>Total Kelas</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="attendance-status-table">
+                    <div class="table-header">
+                        <h3>Detail Status Kehadiran</h3>
+                        <div class="table-filters">
+                            <select id="statusFilter" onchange="filterAttendanceStatus()">
+                                <option value="all">Semua Status</option>
+                                <option value="reported">Sudah Lapor</option>
+                                <option value="pending">Belum Lapor</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table id="attendanceStatusTable">
+                            <thead>
+                                <tr>
+                                    <th>Kelas</th>
+                                    <th>Status</th>
+                                    <th>Waktu Lapor Terakhir</th>
+                                    <th>Jumlah Mata Pelajaran</th>
+                                    <th>Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendanceStatusTableBody">
+                                <tr>
+                                    <td colspan="5" class="loading">
+                                        <i class="fas fa-spinner fa-spin"></i> Memuat data...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </section>
 
