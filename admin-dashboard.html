@@ -11,7 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
     
     <!-- XLSX Library - if this fails, CSV will be used automatically -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.min.js" 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" 
             crossorigin="anonymous" 
             referrerpolicy="no-referrer"></script>
 </head>
@@ -268,6 +268,27 @@
                     <div class="filter-group">
                         <label for="analyticsClass">Filter Kelas</label>
                         <select id="analyticsClass"><option value="">Semua Kelas</option></select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="analyticsTimeSlot">Jam Pelajaran</label>
+                        <select id="analyticsTimeSlot">
+                            <option value="">Semua Jam</option>
+                            <option value="1">Jam 1 (06:30-07:15)</option>
+                            <option value="2">Jam 2 (07:15-08:00)</option>
+                            <option value="3">Jam 3 (08:00-08:45)</option>
+                            <option value="4">Jam 4 (08:45-09:30)</option>
+                            <option value="5">Jam 5 (09:45-10:30)</option>
+                            <option value="6">Jam 6 (10:30-11:15)</option>
+                            <option value="7">Jam 7 (11:15-12:00)</option>
+                            <option value="8">Jam 8 (12:45-13:30)</option>
+                            <option value="9">Jam 9 (13:30-14:15)</option>
+                            <option value="10">Jam 10 (14:15-15:00)</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="analyticsDate">Tanggal Spesifik</label>
+                        <input type="date" id="analyticsDate" style="padding: 8px; border-radius: 5px; border: 1px solid #ccc; width: 100%;" title="Pilih tanggal untuk analitik harian">
+                        <small style="color: #64748b; font-size: 0.8em;">Kosongkan untuk semua tanggal</small>
                     </div>
                     <div class="filter-group">
                         <label for="analyticsMonth">Bulan</label>

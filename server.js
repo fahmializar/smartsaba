@@ -124,6 +124,9 @@ async function initializeDatabase() {
                 teacher_name VARCHAR(255),
                 status VARCHAR(50),
                 period INTEGER,
+                time_slot VARCHAR(50),
+                start_time VARCHAR(10),
+                end_time VARCHAR(10),
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (class_name) REFERENCES classes(class_name) ON DELETE CASCADE
             )
@@ -442,6 +445,17 @@ app.get('/api/subjects', async (req, res) => {
     }
 });
 
+// 6.1. API Get All Time Slots
+app.get('/api/time-slots', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM time_slots ORDER BY period');
+        res.json(result.rows);
+    } catch (err) {
+        console.error('Error fetching time slots:', err);
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
 // 7. API Get Class Schedules
 app.get('/api/class-schedules/:className', async (req, res) => {
     try {
@@ -557,10 +571,14 @@ app.post('/api/submit-attendance', async (req, res) => {
             const subject = item.name || item.subject;
             const teacher = item.teacher || '';
             const status = item.attendance || item.status;
+            const timeSlot = item.timeSlot || '';
+            const startTime = item.startTime || '';
+            const endTime = item.endTime || '';
+            const period = item.period || null;
             
             await pool.query(
-                'INSERT INTO attendance (class_name, report_date, subject, teacher_name, status) VALUES ($1, $2, $3, $4, $5)',
-                [class_name, date, subject, teacher, status]
+                'INSERT INTO attendance (class_name, report_date, subject, teacher_name, status, time_slot, start_time, end_time, period) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+                [class_name, date, subject, teacher, status, timeSlot, startTime, endTime, period]
             );
         }
 
@@ -580,7 +598,16 @@ app.post('/api/submit-attendance', async (req, res) => {
 // 10. API Get Analytics Data with Filters
 app.get('/api/analytics', async (req, res) => {
     try {
-        const { teacher_name, class_name, month, year } = req.query;
+        const { teacher_name, class_name, period, date, month, year } = req.query;
+        
+        // Debug logging
+        console.log('📊 Analytics API called with filters:');
+        console.log('- teacher_name:', teacher_name);
+        console.log('- class_name:', class_name);
+        console.log('- period:', period);
+        console.log('- date:', date);
+        console.log('- month:', month);
+        console.log('- year:', year);
         
         let query = 'SELECT * FROM attendance WHERE status IS NOT NULL';
         const params = [];
@@ -595,6 +622,16 @@ app.get('/api/analytics', async (req, res) => {
         if (class_name && class_name !== '') {
             query += ` AND class_name = $${paramIndex}`;
             params.push(class_name);
+            paramIndex++;
+        }
+        if (period && period !== '') {
+            query += ` AND period = $${paramIndex}`;
+            params.push(parseInt(period));
+            paramIndex++;
+        }
+        if (date && date !== '') {
+            query += ` AND report_date = $${paramIndex}`;
+            params.push(date);
             paramIndex++;
         }
         if (month && month !== '') {
@@ -696,9 +733,12 @@ app.get('/api/attendance-history/:className', async (req, res) => {
 // 11. API Get All Reports (For Admin Dashboard)
 app.get('/api/all-reports', async (req, res) => {
     try {
+        console.log('📊 All-reports API called');
         const result = await pool.query(
             'SELECT * FROM attendance WHERE status IS NOT NULL AND subject IS NOT NULL AND report_date IS NOT NULL ORDER BY report_date DESC, timestamp DESC'
         );
+
+        console.log('📊 Raw attendance records:', result.rows.length);
 
         // Group by class and date
         const groupedReports = {};
@@ -717,11 +757,30 @@ app.get('/api/all-reports', async (req, res) => {
             groupedReports[key].subjects.push({
                 name: row.subject || 'Unknown Subject',
                 teacher: row.teacher_name || 'N/A',
-                attendance: (row.status || '').toLowerCase()
+                attendance: (row.status || '').toLowerCase(),
+                timeSlot: row.time_slot || (row.period ? `Jam ${row.period}` : ''),
+                period: row.period,
+                startTime: row.start_time,
+                endTime: row.end_time
             });
         });
 
-        res.json(Object.values(groupedReports));
+        const groupedArray = Object.values(groupedReports);
+        console.log('📊 Grouped reports:', groupedArray.length);
+        
+        // Debug: Show sample dates before JSON serialization
+        if (groupedArray.length > 0) {
+            console.log('📅 Sample dates before JSON serialization:');
+            groupedArray.slice(0, 3).forEach((report, i) => {
+                console.log(`${i + 1}. ${report.className}: ${report.date} (${typeof report.date})`);
+                if (report.date instanceof Date) {
+                    console.log(`   Date string: ${report.date.toString()}`);
+                    console.log(`   ISO: ${report.date.toISOString()}`);
+                }
+            });
+        }
+
+        res.json(groupedArray);
     } catch (err) {
         console.error('Error fetching all reports:', err);
         res.status(500).json({ success: false, message: err.message });

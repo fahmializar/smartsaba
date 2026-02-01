@@ -3,6 +3,7 @@ const API_BASE = window.location.origin + '/api';
 let classSchedule = {}; 
 let SCHOOL_SUBJECTS = [];
 let SCHOOL_TEACHERS = [];
+let TIME_SLOTS = [];
 
 // Indonesian date formatting utility
 function formatIndonesianDate(dateString) {
@@ -92,26 +93,30 @@ window.addEventListener('resize', setupMobileResponsiveness);
 async function loadDynamicData() {
     try {
         console.log('Loading dynamic data from API...');
-        const [subjectsRes, teachersRes] = await Promise.all([
+        const [subjectsRes, teachersRes, timeSlotsRes] = await Promise.all([
             fetch(`${API_BASE}/subjects`),
-            fetch(`${API_BASE}/teachers`)
+            fetch(`${API_BASE}/teachers`),
+            fetch(`${API_BASE}/time-slots`)
         ]);
         
-        if (!subjectsRes.ok || !teachersRes.ok) {
-            throw new Error(`API error: Subjects ${subjectsRes.status}, Teachers ${teachersRes.status}`);
+        if (!subjectsRes.ok || !teachersRes.ok || !timeSlotsRes.ok) {
+            throw new Error(`API error: Subjects ${subjectsRes.status}, Teachers ${teachersRes.status}, Time Slots ${timeSlotsRes.status}`);
         }
         
         const subjectsData = await subjectsRes.json();
         const teachersData = await teachersRes.json();
+        const timeSlotsData = await timeSlotsRes.json();
         
-        // Ensure SCHOOL_SUBJECTS is an array
+        // Ensure data is in array format
         SCHOOL_SUBJECTS = Array.isArray(subjectsData) ? subjectsData : [];
         SCHOOL_TEACHERS = Array.isArray(teachersData) 
             ? teachersData.map(t => t.teacher_name || t.name || t) 
             : [];
+        TIME_SLOTS = Array.isArray(timeSlotsData) ? timeSlotsData : [];
         
         console.log('Subjects loaded:', SCHOOL_SUBJECTS);
         console.log('Teachers loaded:', SCHOOL_TEACHERS);
+        console.log('Time slots loaded:', TIME_SLOTS);
         
         if (SCHOOL_SUBJECTS.length === 0 || SCHOOL_TEACHERS.length === 0) {
             console.warn('Warning: No subjects or teachers loaded');
@@ -121,6 +126,7 @@ async function loadDynamicData() {
         // Set empty arrays as fallback
         SCHOOL_SUBJECTS = [];
         SCHOOL_TEACHERS = [];
+        TIME_SLOTS = [];
     }
 }
 
@@ -150,7 +156,8 @@ async function loadClassSchedule() {
                     subjectName: s.subject,
                     teacherName: s.teacher_name,
                     startTime: s.start_time,
-                    endTime: s.end_time
+                    endTime: s.end_time,
+                    period: s.period
                 });
             });
         }
@@ -199,7 +206,7 @@ async function loadTodaySchedule(dateString) {
     container.innerHTML = '<p style="text-align:center; padding:20px; color:#3498db;"><i class="fas fa-spinner fa-spin"></i> Memuat jadwal...</p>';
     
     if (todaySubjects.length === 0) {
-        container.innerHTML = '<p style="text-align:center; padding:20px; color:#94a3b8;">Tidak ada jadwal presensi hari ini.</p>';
+        container.innerHTML = '<p style="text-align:center; padding:20px; color:#94a3b8;">Tidak ada jadwal presensi hari ini. Silakan atur jadwal terlebih dahulu di menu "Atur Jadwal".</p>';
         return;
     }
 
@@ -243,8 +250,11 @@ async function loadTodaySchedule(dateString) {
 
     container.innerHTML = warningHtml;
     
-    // Render subject cards
-    todaySubjects.forEach((s, idx) => {
+    // Sort subjects by start time to show in chronological order
+    const sortedSubjects = [...todaySubjects].sort((a, b) => a.startTime.localeCompare(b.startTime));
+    
+    // Render subject cards with integrated time slot information
+    sortedSubjects.forEach((s, idx) => {
         // Check if this subject already has a report
         const existingReport = existingReports.find(r => r.subject === s.subjectName);
         const hasExistingReport = !!existingReport;
@@ -254,6 +264,8 @@ async function loadTodaySchedule(dateString) {
         card.dataset.teacher = s.teacherName;
         card.dataset.start = s.startTime;
         card.dataset.end = s.endTime;
+        card.dataset.timeSlot = `${s.startTime}-${s.endTime}`;
+        card.dataset.period = s.period || '';
 
         // Add visual indicator for existing reports
         let statusIndicator = '';
@@ -267,11 +279,29 @@ async function loadTodaySchedule(dateString) {
         }
 
         card.style.cssText = cardStyle;
-        card.innerHTML = `<div><h4 style="margin: 0; color: #1e293b; font-size: 0.95em; display: flex; align-items: center;">${s.subjectName}${statusIndicator}</h4><p style="margin: 2px 0 0 0; font-size: 0.75em; color: #64748b;">${s.teacherName}</p></div>
+        card.innerHTML = `
+            <div>
+                <h4 style="margin: 0; color: #1e293b; font-size: 0.95em; display: flex; align-items: center;">
+                    ${s.subjectName}${statusIndicator}
+                </h4>
+                <p style="margin: 2px 0 0 0; font-size: 0.75em; color: #64748b;">${s.teacherName}</p>
+                <p style="margin: 2px 0 0 0; font-size: 0.7em; color: #3498db; font-weight: 600;">
+                    <i class="fas fa-clock"></i> ${s.startTime} - ${s.endTime}
+                </p>
+            </div>
             <div style="display: flex; gap: 8px;">
-                <label style="cursor: pointer;"><input type="radio" name="status_${idx}" value="Hadir" required style="display:none;" onchange="updateButtonStyle(this)"><span class="btn-att" style="display:inline-block; padding: 6px 12px; border-radius: 6px; border: 1.5px solid #10b981; color: #10b981; font-weight: 700; font-size: 0.8em;">Hadir</span></label>
-                <label style="cursor: pointer;"><input type="radio" name="status_${idx}" value="Tugas" style="display:none;" onchange="updateButtonStyle(this)"><span class="btn-att" style="display:inline-block; padding: 6px 12px; border-radius: 6px; border: 1.5px solid #f59e0b; color: #f59e0b; font-weight: 700; font-size: 0.8em;">Tugas</span></label>
-                <label style="cursor: pointer;"><input type="radio" name="status_${idx}" value="Kosong" style="display:none;" onchange="updateButtonStyle(this)"><span class="btn-att" style="display:inline-block; padding: 6px 12px; border-radius: 6px; border: 1.5px solid #ef4444; color: #ef4444; font-weight: 700; font-size: 0.8em;">Kosong</span></label>
+                <label style="cursor: pointer;">
+                    <input type="radio" name="status_${idx}" value="Hadir" required style="display:none;" onchange="updateButtonStyle(this)">
+                    <span class="btn-att" style="display:inline-block; padding: 6px 12px; border-radius: 6px; border: 1.5px solid #10b981; color: #10b981; font-weight: 700; font-size: 0.8em;">Hadir</span>
+                </label>
+                <label style="cursor: pointer;">
+                    <input type="radio" name="status_${idx}" value="Tugas" style="display:none;" onchange="updateButtonStyle(this)">
+                    <span class="btn-att" style="display:inline-block; padding: 6px 12px; border-radius: 6px; border: 1.5px solid #f59e0b; color: #f59e0b; font-weight: 700; font-size: 0.8em;">Tugas</span>
+                </label>
+                <label style="cursor: pointer;">
+                    <input type="radio" name="status_${idx}" value="Kosong" style="display:none;" onchange="updateButtonStyle(this)">
+                    <span class="btn-att" style="display:inline-block; padding: 6px 12px; border-radius: 6px; border: 1.5px solid #ef4444; color: #ef4444; font-weight: 700; font-size: 0.8em;">Kosong</span>
+                </label>
             </div>`;
         container.appendChild(card);
     });
@@ -303,12 +333,24 @@ async function submitAttendanceReport() {
         const radio = card.querySelector(`input[name="status_${idx}"]:checked`);
         if (!radio) { allSelected = false; return; }
         
+        // Get time slot information from the schedule data stored in the card
+        const timeSlotInfo = card.dataset.timeSlot || `${card.dataset.start}-${card.dataset.end}`;
+        const period = card.dataset.period ? parseInt(card.dataset.period) : null;
+        
+        // Create time slot label based on period
+        let timeSlotLabel = timeSlotInfo;
+        if (period) {
+            timeSlotLabel = `Jam ${period}`;
+        }
+        
         attendance.push({ 
             name: card.dataset.subject, 
             teacher: card.dataset.teacher,
             startTime: card.dataset.start,
             endTime: card.dataset.end,
-            attendance: radio.value.toLowerCase() 
+            attendance: radio.value.toLowerCase(),
+            timeSlot: timeSlotLabel,
+            period: period
         });
     });
 
@@ -338,7 +380,7 @@ async function submitAttendanceReport() {
             }
         }
 
-        // Objek Laporan untuk LocalStorage (Dashboard Admin)
+        // Create report object for LocalStorage (Dashboard Admin)
         const localReport = {
             id: Date.now(),
             className: className,
@@ -349,13 +391,13 @@ async function submitAttendanceReport() {
             notes: ""
         };
 
-        // --- PERBAIKAN: Simpan ke LocalStorage agar Admin bisa baca ---
+        // Save to LocalStorage for Admin dashboard
         const existingReports = JSON.parse(localStorage.getItem('allReports')) || [];
         existingReports.push(localReport);
         localStorage.setItem('allReports', JSON.stringify(existingReports));
         console.log("Data berhasil disimpan ke LocalStorage allReports");
 
-        // 2. Kirim ke Server
+        // Send to Server
         const res = await fetch(`${API_BASE}/submit-attendance`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -364,7 +406,7 @@ async function submitAttendanceReport() {
         
         const result = await res.json();
         if (result.success) {
-            alert("Laporan berhasil dikirim!");
+            alert(`Laporan berhasil dikirim untuk ${attendance.length} mata pelajaran!`);
             await loadAttendanceHistory(); 
             showSection('history'); 
         } else {
@@ -409,9 +451,10 @@ async function loadAttendanceHistory() {
 
         history.forEach(item => {
             const statusColor = item.status === 'Hadir' ? '#10b981' : (item.status === 'Tugas' ? '#f59e0b' : '#ef4444');
+            const timeSlotInfo = item.time_slot ? ` - ${item.time_slot}` : (item.period ? ` - Jam ${item.period}` : '');
             html += `
                 <tr style="border-bottom: 1px solid #e2e8f0;">
-                    <td style="padding: 12px;">${formatIndonesianDate(item.report_date)}</td>
+                    <td style="padding: 12px;">${formatIndonesianDate(item.report_date)}${timeSlotInfo}</td>
                     <td style="padding: 12px; font-weight: 600;">${item.subject}</td>
                     <td style="padding: 12px; text-align: center;">
                         <span style="background: ${statusColor}; color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.8em; font-weight: bold; display: inline-block; min-width: 60px;">${item.status}</span>
@@ -530,16 +573,32 @@ function addScheduleSubject() {
         ? SCHOOL_TEACHERS.map(t => `<option value="${t}">${t}</option>`).join('')
         : '<option value="">Tidak ada data guru</option>';
     
+    // Build time slot options
+    const timeSlotOptions = TIME_SLOTS.length > 0
+        ? TIME_SLOTS.map(slot => `<option value="${slot.period}" data-start="${slot.start_time}" data-end="${slot.end_time}">${slot.label} (${slot.start_time} - ${slot.end_time})</option>`).join('')
+        : '<option value="">Tidak ada data jam pelajaran</option>';
+    
     div.innerHTML = `
         <button type="button" onclick="this.parentElement.remove()" style="position:absolute; top:5px; right:5px; border:none; background:none; color:red; cursor:pointer; font-size:18px;">&times;</button>
-        <select class="subject-dropdown" required style="width:100%; padding:10px; margin-bottom:8px; border-radius:5px; border:1px solid #ccc;">
-            <option value="">Pilih Mata Pelajaran</option>${subjectOptions}
-        </select>
-        <select class="teacher-dropdown" required style="width:100%; padding:10px; margin-bottom:8px; border-radius:5px; border:1px solid #ccc;">
-            <option value="">Pilih Guru</option>${teacherOptions}
-        </select>
-        <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:8px; border-top:1px dashed #eee; padding-top:10px;">
-            ${CLASS_PERIODS.map(p => `<label style="font-size:11px; display:flex; align-items:center; gap:5px;"><input type="checkbox" class="period-checkbox" value="${p.period}"> ${p.label}</label>`).join('')}
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+            <div>
+                <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: #374151;">Mata Pelajaran</label>
+                <select class="subject-dropdown" required style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; font-size: 13px;">
+                    <option value="">Pilih Mata Pelajaran</option>${subjectOptions}
+                </select>
+            </div>
+            <div>
+                <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: #374151;">Guru</label>
+                <select class="teacher-dropdown" required style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; font-size: 13px;">
+                    <option value="">Pilih Guru</option>${teacherOptions}
+                </select>
+            </div>
+        </div>
+        <div>
+            <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: #374151;">Jam Pelajaran</label>
+            <select class="timeslot-dropdown" required style="width:100%; padding:8px; border-radius:5px; border:1px solid #ccc; font-size: 13px;">
+                <option value="">Pilih Jam Pelajaran</option>${timeSlotOptions}
+            </select>
         </div>`;
     container.appendChild(div);
 }
@@ -550,18 +609,31 @@ async function handleScheduleSubmit(e) {
     const day = document.getElementById('currentDayName').textContent;
     const items = document.querySelectorAll('.schedule-subject-item');
     const schedules = [];
+    
     items.forEach(item => {
         const subject = item.querySelector('.subject-dropdown').value;
         const teacher = item.querySelector('.teacher-dropdown').value;
-        const periods = Array.from(item.querySelectorAll('.period-checkbox:checked')).map(cb => parseInt(cb.value));
-        if (subject && teacher && periods.length > 0) {
-            periods.sort((a,b) => a-b);
-            const start = CLASS_PERIODS.find(p => p.period === periods[0]).time.split('-')[0];
-            const end = CLASS_PERIODS.find(p => p.period === periods[periods.length-1]).time.split('-')[1];
-            schedules.push({ day, subject, teacher_name: teacher, start_time: start.trim(), end_time: end.trim() });
+        const timeSlotSelect = item.querySelector('.timeslot-dropdown');
+        const selectedTimeSlot = timeSlotSelect.value;
+        
+        if (subject && teacher && selectedTimeSlot) {
+            const selectedOption = timeSlotSelect.options[timeSlotSelect.selectedIndex];
+            const startTime = selectedOption.dataset.start;
+            const endTime = selectedOption.dataset.end;
+            
+            schedules.push({ 
+                day, 
+                subject, 
+                teacher_name: teacher, 
+                start_time: startTime, 
+                end_time: endTime,
+                period: parseInt(selectedTimeSlot)
+            });
         }
     });
-    if (schedules.length === 0) return alert("Pilih Mapel, Guru, dan Jam!");
+    
+    if (schedules.length === 0) return alert("Pilih Mapel, Guru, dan Jam Pelajaran!");
+    
     try {
         const res = await fetch(`${API_BASE}/save-schedule`, {
             method: 'POST',
@@ -573,7 +645,9 @@ async function handleScheduleSubmit(e) {
             document.getElementById('subjectsList').innerHTML = '';
             await loadClassSchedule();
         }
-    } catch (err) { alert("Gagal menyimpan."); }
+    } catch (err) { 
+        alert("Gagal menyimpan."); 
+    }
 }
 
 function updateWeeklyScheduleDisplay() {
@@ -583,8 +657,11 @@ function updateWeeklyScheduleDisplay() {
     container.innerHTML = days.map(day => `<div style="flex:1; min-width:160px; border:1px solid #e2e8f0; padding:10px; border-radius:10px; background:#fff;">
             <div style="border-bottom:2px solid #3498db; padding-bottom:5px; margin-bottom:10px; font-weight:bold; color:#1e3a8a; font-size:12px;">${day}</div>
             ${(classSchedule[day] || []).map(s => `<div style="font-size:10px; margin-bottom:8px; padding:5px; background:#f8fafc; border-radius:4px; border:1px solid #edf2f7; position:relative;">
-                <strong>${s.subjectName}</strong><br>
-                <span style="color:#3498db;">${s.startTime}-${s.endTime}</span>
+                <div style="font-weight:600; color:#1e293b; margin-bottom:2px;">${s.subjectName}</div>
+                <div style="color:#64748b; font-size:9px; margin-bottom:2px;">${s.teacherName}</div>
+                <div style="color:#3498db; font-size:9px; font-weight:600;">
+                    <i class="fas fa-clock"></i> ${s.startTime}-${s.endTime}
+                </div>
                 <button onclick="deleteScheduleItem(${s.id}, '${day}')" style="position:absolute; top:2px; right:2px; background:#ef4444; color:white; border:none; border-radius:3px; width:16px; height:16px; font-size:8px; cursor:pointer; display:flex; align-items:center; justify-content:center;" title="Hapus jadwal">
                     <i class="fas fa-times"></i>
                 </button>

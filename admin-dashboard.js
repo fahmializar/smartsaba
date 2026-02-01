@@ -110,6 +110,17 @@ function setupEventListeners() {
             });
         }
     });
+    
+    // Add analytics filter listeners
+    const analyticsFilterIds = ['analyticsTeacher', 'analyticsClass', 'analyticsTimeSlot', 'analyticsDate', 'analyticsMonth', 'analyticsYear'];
+    analyticsFilterIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('change', () => {
+                if (currentSection === 'analytics') loadAnalytics();
+            });
+        }
+    });
 }
 
 // 6. Navigate Menu
@@ -340,11 +351,15 @@ async function loadReports() {
                     <small style="color:#666;">Pengirim: ${report.submittedBy}</small>
                 </div>
                 <div class="subjects-grid">
-                    ${report.subjects && report.subjects.length > 0 ? report.subjects.map(s => `
+                    ${report.subjects && report.subjects.length > 0 ? report.subjects.map(s => {
+                        const timeSlotInfo = s.timeSlot || (s.period ? `Jam ${s.period}` : '');
+                        const timeSlotDisplay = timeSlotInfo ? `<div style="font-size: 0.75em; color: #64748b;">${timeSlotInfo}</div>` : '';
+                        return `
                         <div style="display: flex; justify-content: space-between; font-size: 0.9em; margin-bottom: 8px; padding: 8px; background: #f9fafb; border-radius: 4px;">
                             <div>
                                 <div style="font-weight: 600; color: #1e293b;">${s.name}</div>
                                 <div style="font-size: 0.8em; color: #64748b;">${s.teacher}</div>
+                                ${timeSlotDisplay}
                             </div>
                             <span style="font-weight: bold; color: ${
                                 s.attendance && s.attendance.toLowerCase() === 'hadir' ? '#10b981' : 
@@ -353,7 +368,7 @@ async function loadReports() {
                                 ${(s.attendance || 'TIDAK').toUpperCase()}
                             </span>
                         </div>
-                    `).join('') : '<div style="color: #999;">Tidak ada data mata pelajaran</div>'}
+                    `}).join('') : '<div style="color: #999;">Tidak ada data mata pelajaran</div>'}
                 </div>
             </div>
         `).join('');
@@ -374,6 +389,8 @@ async function loadAnalytics() {
         // Get filter values
         const teacher = document.getElementById('analyticsTeacher')?.value || '';
         const cls = document.getElementById('analyticsClass')?.value || '';
+        const timeSlot = document.getElementById('analyticsTimeSlot')?.value || '';
+        const specificDate = document.getElementById('analyticsDate')?.value || '';
         const month = document.getElementById('analyticsMonth')?.value || '';
         const year = document.getElementById('analyticsYear')?.value || '';
 
@@ -381,6 +398,8 @@ async function loadAnalytics() {
         const params = new URLSearchParams();
         if (teacher) params.append('teacher_name', teacher);
         if (cls) params.append('class_name', cls);
+        if (timeSlot) params.append('period', timeSlot);
+        if (specificDate) params.append('date', specificDate);
         if (month) params.append('month', month);
         if (year) params.append('year', year);
 
@@ -639,6 +658,8 @@ async function downloadExcelAnalytics() {
         // Get filter values
         const teacher = document.getElementById('analyticsTeacher')?.value || '';
         const cls = document.getElementById('analyticsClass')?.value || '';
+        const timeSlot = document.getElementById('analyticsTimeSlot')?.value || '';
+        const specificDate = document.getElementById('analyticsDate')?.value || '';
         const month = document.getElementById('analyticsMonth')?.value || '';
         const year = document.getElementById('analyticsYear')?.value || '';
 
@@ -646,10 +667,14 @@ async function downloadExcelAnalytics() {
         const params = new URLSearchParams();
         if (teacher) params.append('teacher_name', teacher);
         if (cls) params.append('class_name', cls);
+        if (timeSlot) params.append('period', timeSlot);
+        if (specificDate) params.append('date', specificDate);
         if (month) params.append('month', month);
         if (year) params.append('year', year);
 
         console.log('📊 Fetching analytics data with params:', params.toString());
+        console.log('🔍 DEBUG - Date filter value:', specificDate);
+        console.log('🔍 DEBUG - Full URL:', `${API_BASE}/analytics?${params.toString()}`);
         const response = await fetch(`${API_BASE}/analytics?${params.toString()}`);
         if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         const data = await response.json();
@@ -701,26 +726,70 @@ async function downloadExcelAnalytics() {
         classSheet['!cols'] = [{ wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 10 }, { wch: 18 }];
         XLSX.utils.book_append_sheet(workbook, classSheet, 'Kelas');
 
-        // Sheet 4: Raw Data
-        const rawData = [['DATA KEHADIRAN LENGKAP'], []];
-        rawData.push(['Tanggal', 'Kelas', 'Mata Pelajaran', 'Guru', 'Status']);
+        // Sheet 4: Time Slot Performance
+        const timeSlotData = [['KEHADIRAN PER JAM PELAJARAN'], []];
+        timeSlotData.push(['Jam Pelajaran', 'Hadir', 'Tugas', 'Tidak Hadir', 'Total', 'Persentase Hadir']);
+        
+        // Group by time slot for analysis
+        const byTimeSlot = {};
         data.rawData.forEach(row => {
+            const timeSlot = row.time_slot || (row.period ? `Jam ${row.period}` : 'N/A');
+            if (!byTimeSlot[timeSlot]) {
+                byTimeSlot[timeSlot] = { hadir: 0, tugas: 0, tidak: 0, total: 0 };
+            }
+            byTimeSlot[timeSlot].total++;
+            if (row.status && row.status.toLowerCase() === 'hadir') byTimeSlot[timeSlot].hadir++;
+            else if (row.status && row.status.toLowerCase() === 'tugas') byTimeSlot[timeSlot].tugas++;
+            else byTimeSlot[timeSlot].tidak++;
+        });
+        
+        Object.entries(byTimeSlot).forEach(([timeSlot, stats]) => {
+            const percent = stats.total > 0 ? ((stats.hadir / stats.total) * 100).toFixed(1) : 0;
+            timeSlotData.push([timeSlot, stats.hadir, stats.tugas, stats.tidak, stats.total, percent + '%']);
+        });
+        const timeSlotSheet = XLSX.utils.aoa_to_sheet(timeSlotData);
+        timeSlotSheet['!cols'] = [{ wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 10 }, { wch: 18 }];
+        XLSX.utils.book_append_sheet(workbook, timeSlotSheet, 'Jam Pelajaran');
+
+        // Sheet 5: Raw Data
+        const rawData = [['DATA KEHADIRAN LENGKAP'], []];
+        rawData.push(['Tanggal', 'Kelas', 'Mata Pelajaran', 'Guru', 'Jam Pelajaran', 'Status']);
+        data.rawData.forEach(row => {
+            const timeSlotInfo = row.time_slot || (row.period ? `Jam ${row.period}` : 'N/A');
             rawData.push([
                 formatIndonesianDate(row.report_date),
                 row.class_name,
                 row.subject,
                 row.teacher_name || 'N/A',
+                timeSlotInfo,
                 (row.status || 'Tidak Hadir').toUpperCase()
             ]);
         });
         const rawDataSheet = XLSX.utils.aoa_to_sheet(rawData);
-        rawDataSheet['!cols'] = [{ wch: 15 }, { wch: 15 }, { wch: 25 }, { wch: 20 }, { wch: 12 }];
+        rawDataSheet['!cols'] = [{ wch: 15 }, { wch: 15 }, { wch: 25 }, { wch: 20 }, { wch: 15 }, { wch: 12 }];
         XLSX.utils.book_append_sheet(workbook, rawDataSheet, 'Data Lengkap');
 
-        // Generate filename with date
+        // Generate filename with date and filters
         const now = new Date();
         const dateStr = now.toISOString().slice(0, 10);
-        const filename = `Analitik_Kehadiran_${dateStr}.xlsx`;
+        let filename = `Analitik_Kehadiran_${dateStr}`;
+        
+        // Add filter info to filename
+        if (specificDate) {
+            const filterDate = new Date(specificDate).toLocaleDateString('id-ID', {
+                day: '2-digit',
+                month: '2-digit', 
+                year: 'numeric'
+            }).replace(/\//g, '-');
+            filename = `Analitik_Kehadiran_${filterDate}`;
+        } else if (month && year) {
+            const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+            filename = `Analitik_Kehadiran_${monthNames[parseInt(month)]}_${year}`;
+        } else if (year) {
+            filename = `Analitik_Kehadiran_${year}`;
+        }
+        
+        filename += '.xlsx';
 
         // Download
         console.log('💾 Generating Excel file:', filename);
@@ -728,7 +797,7 @@ async function downloadExcelAnalytics() {
         console.log('✅ Excel file downloaded successfully:', filename);
         
         // Show success message
-        alert(`✅ File Excel berhasil diunduh: ${filename}\n\n📊 File berisi 4 sheet:\n• Ringkasan\n• Data per Guru\n• Data per Kelas\n• Data Lengkap`);
+        alert(`✅ File Excel berhasil diunduh: ${filename}\n\n📊 File berisi 5 sheet:\n• Ringkasan\n• Data per Guru\n• Data per Kelas\n• Data per Jam Pelajaran\n• Data Lengkap`);
 
     } catch (err) {
         console.error('❌ Error downloading Excel:', err);
@@ -829,12 +898,16 @@ async function downloadAsCSV() {
         // Get the same data
         const teacher = document.getElementById('analyticsTeacher')?.value || '';
         const cls = document.getElementById('analyticsClass')?.value || '';
+        const timeSlot = document.getElementById('analyticsTimeSlot')?.value || '';
+        const specificDate = document.getElementById('analyticsDate')?.value || '';
         const month = document.getElementById('analyticsMonth')?.value || '';
         const year = document.getElementById('analyticsYear')?.value || '';
 
         const params = new URLSearchParams();
         if (teacher) params.append('teacher_name', teacher);
         if (cls) params.append('class_name', cls);
+        if (timeSlot) params.append('period', timeSlot);
+        if (specificDate) params.append('date', specificDate);
         if (month) params.append('month', month);
         if (year) params.append('year', year);
 
@@ -879,12 +952,37 @@ async function downloadAsCSV() {
         });
         csvContent += "\n";
         
-        // Sheet 4 equivalent: Raw Data
+        // Sheet 4 equivalent: Time Slot Performance
+        csvContent += "KEHADIRAN PER JAM PELAJARAN\n";
+        csvContent += "=".repeat(50) + "\n";
+        csvContent += "Jam Pelajaran,Hadir,Tugas,Tidak Hadir,Total,Persentase Hadir\n";
+        
+        // Group by time slot for analysis
+        const byTimeSlot = {};
+        data.rawData.forEach(row => {
+            const timeSlot = row.time_slot || (row.period ? `Jam ${row.period}` : 'N/A');
+            if (!byTimeSlot[timeSlot]) {
+                byTimeSlot[timeSlot] = { hadir: 0, tugas: 0, tidak: 0, total: 0 };
+            }
+            byTimeSlot[timeSlot].total++;
+            if (row.status && row.status.toLowerCase() === 'hadir') byTimeSlot[timeSlot].hadir++;
+            else if (row.status && row.status.toLowerCase() === 'tugas') byTimeSlot[timeSlot].tugas++;
+            else byTimeSlot[timeSlot].tidak++;
+        });
+        
+        Object.entries(byTimeSlot).forEach(([timeSlot, stats]) => {
+            const percent = stats.total > 0 ? ((stats.hadir / stats.total) * 100).toFixed(1) : 0;
+            csvContent += `"${timeSlot}",${stats.hadir},${stats.tugas},${stats.tidak},${stats.total},${percent}%\n`;
+        });
+        csvContent += "\n";
+        
+        // Sheet 5 equivalent: Raw Data
         csvContent += "DATA KEHADIRAN LENGKAP\n";
         csvContent += "=".repeat(50) + "\n";
-        csvContent += "Tanggal,Kelas,Mata Pelajaran,Guru,Status\n";
+        csvContent += "Tanggal,Kelas,Mata Pelajaran,Guru,Jam Pelajaran,Status\n";
         data.rawData.forEach(row => {
-            csvContent += `${formatIndonesianDate(row.report_date)},"${row.class_name}","${row.subject}","${row.teacher_name || 'N/A'}",${(row.status || 'Tidak Hadir').toUpperCase()}\n`;
+            const timeSlotInfo = row.time_slot || (row.period ? `Jam ${row.period}` : 'N/A');
+            csvContent += `${formatIndonesianDate(row.report_date)},"${row.class_name}","${row.subject}","${row.teacher_name || 'N/A'}","${timeSlotInfo}",${(row.status || 'Tidak Hadir').toUpperCase()}\n`;
         });
 
         // Download CSV with UTF-8 BOM for proper Excel compatibility
@@ -895,8 +993,25 @@ async function downloadAsCSV() {
         link.setAttribute('href', url);
         
         const now = new Date();
-        const dateStr = now.toISOString().slice(0, 10);
-        link.setAttribute('download', `Analitik_Kehadiran_${dateStr}.csv`);
+        let filename = `Analitik_Kehadiran_${now.toISOString().slice(0, 10)}`;
+        
+        // Add filter info to filename
+        if (specificDate) {
+            const filterDate = new Date(specificDate).toLocaleDateString('id-ID', {
+                day: '2-digit',
+                month: '2-digit', 
+                year: 'numeric'
+            }).replace(/\//g, '-');
+            filename = `Analitik_Kehadiran_${filterDate}`;
+        } else if (month && year) {
+            const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+            filename = `Analitik_Kehadiran_${monthNames[parseInt(month)]}_${year}`;
+        } else if (year) {
+            filename = `Analitik_Kehadiran_${year}`;
+        }
+        
+        filename += '.csv';
+        link.setAttribute('download', filename);
         
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
@@ -904,7 +1019,7 @@ async function downloadAsCSV() {
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
         
-        alert('✅ File CSV berhasil diunduh!\n\n📊 File berisi semua data analitik:\n• Ringkasan statistik\n• Data per guru\n• Data per kelas\n• Data kehadiran lengkap\n\n💡 File dapat dibuka di Excel atau Google Sheets\n\n📝 Format: CSV (Excel Compatible)');
+        alert('✅ File CSV berhasil diunduh!\n\n📊 File berisi semua data analitik:\n• Ringkasan statistik\n• Data per guru\n• Data per kelas\n• Data per jam pelajaran\n• Data kehadiran lengkap\n\n💡 File dapat dibuka di Excel atau Google Sheets\n\n📝 Format: CSV (Excel Compatible)');
         
     } catch (err) {
         console.error('❌ Error downloading CSV:', err);
@@ -982,7 +1097,13 @@ let attendanceStatusData = [];
 // Load attendance status for a specific date
 async function loadAttendanceStatus() {
     try {
-        const selectedDate = document.getElementById('statusDate').value || new Date().toISOString().split('T')[0];
+        const selectedDate = document.getElementById('statusDate').value || (() => {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        })();
         
         console.log('📊 Loading attendance status for date:', selectedDate);
         
@@ -993,10 +1114,25 @@ async function loadAttendanceStatus() {
         console.log('📋 Loaded classes:', allClasses.length);
         
         // Load attendance reports - use the grouped reports from all-reports endpoint
-        const reportsResponse = await fetch(`${API_BASE}/all-reports`);
+        const cacheBuster = Date.now();
+        const reportsResponse = await fetch(`${API_BASE}/all-reports?_cb=${cacheBuster}`);
         if (!reportsResponse.ok) throw new Error('Failed to fetch reports');
         const allGroupedReports = await reportsResponse.json();
         console.log('📝 Total grouped reports in database:', allGroupedReports.length);
+        
+        // Debug: Show sample report dates
+        if (allGroupedReports.length > 0) {
+            console.log('📅 Sample report dates from API:');
+            allGroupedReports.slice(0, 5).forEach((r, i) => {
+                console.log(`${i + 1}. Class: ${r.className}, Date: ${r.date}, Type: ${typeof r.date}`);
+                if (r.date instanceof Date) {
+                    console.log(`   Date string: ${r.date.toString()}`);
+                    console.log(`   ISO: ${r.date.toISOString()}`);
+                } else if (typeof r.date === 'string') {
+                    console.log(`   String value: "${r.date}"`);
+                }
+            });
+        }
         
         // Debug: Show sample report dates
         if (allGroupedReports.length > 0) {
@@ -1008,22 +1144,45 @@ async function loadAttendanceStatus() {
         }
         
         // Filter reports for the selected date
-        const dateReports = allGroupedReports.filter(report => {
-            if (!report.date) return false;
-            
-            // Handle different date formats
-            let reportDate;
-            if (typeof report.date === 'string') {
-                // If it's a string, extract just the date part (YYYY-MM-DD)
-                reportDate = report.date.split('T')[0];
-            } else if (report.date instanceof Date) {
-                // If it's a Date object, format it
-                reportDate = report.date.toISOString().split('T')[0];
-            } else {
+        console.log('🔍 Starting date filtering...');
+        console.log('🔍 Total grouped reports to filter:', allGroupedReports.length);
+        console.log('🔍 Looking for date:', selectedDate);
+        
+        const dateReports = allGroupedReports.filter((report, index) => {
+            if (!report.date) {
+                console.log(`❌ Report ${index}: No date`);
                 return false;
             }
             
-            return reportDate === selectedDate;
+            // Handle different date formats with timezone-aware comparison
+            let reportDate;
+            if (typeof report.date === 'string') {
+                // If it's a string, it's likely an ISO string from JSON serialization
+                // Parse it back to a Date object first, then extract local date
+                const dateObj = new Date(report.date);
+                const year = dateObj.getFullYear();
+                const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+                const day = String(dateObj.getDate()).padStart(2, '0');
+                reportDate = `${year}-${month}-${day}`;
+                console.log(`📅 Report ${index} (${report.className}): String date "${report.date}" -> Date object ${dateObj.toString()} -> ${reportDate}`);
+            } else if (report.date instanceof Date) {
+                // FIXED: Use local date string instead of UTC to avoid timezone conversion issues
+                const year = report.date.getFullYear();
+                const month = String(report.date.getMonth() + 1).padStart(2, '0');
+                const day = String(report.date.getDate()).padStart(2, '0');
+                reportDate = `${year}-${month}-${day}`;
+                console.log(`📅 Report ${index} (${report.className}): Date object ${report.date.toString()} -> ${reportDate}`);
+            } else {
+                console.log(`❌ Report ${index}: Unknown date type ${typeof report.date}`);
+                return false;
+            }
+            
+            const matches = reportDate === selectedDate;
+            if (matches) {
+                console.log(`✅ MATCH: ${report.className} -> ${reportDate}`);
+            }
+            
+            return matches;
         });
         
         console.log('📊 Reports for selected date:', dateReports.length);
@@ -1151,7 +1310,13 @@ function viewClassReports(className) {
 
 // Remind class (placeholder function - could send notification/email)
 function remindClass(className) {
-    const selectedDate = document.getElementById('statusDate').value || new Date().toISOString().split('T')[0];
+    const selectedDate = document.getElementById('statusDate').value || (() => {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    })();
     const formattedDate = new Date(selectedDate).toLocaleDateString('id-ID');
     
     if (confirm(`Kirim pengingat ke perwakilan kelas ${className} untuk melaporkan kehadiran tanggal ${formattedDate}?`)) {
@@ -1171,8 +1336,12 @@ function remindClass(className) {
 // Initialize attendance status when section is shown
 function initializeAttendanceStatus() {
     // Set today's date as default
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('statusDate').value = today;
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayString = `${year}-${month}-${day}`;
+    document.getElementById('statusDate').value = todayString;
     
     // Load initial data
     loadAttendanceStatus();
