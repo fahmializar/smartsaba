@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard Debug - Kurikulum Smansaba</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .debug-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .error { color: red; }
+        .success { color: green; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>Admin Dashboard Debug</h1>
+    
+    <div class="debug-section">
+        <h2>JavaScript Loading Test</h2>
+        <div id="js-test">Testing...</div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>API Connection Test</h2>
+        <div id="api-test">Testing...</div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>Function Availability Test</h2>
+        <div id="function-test">Testing...</div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>Console Output</h2>
+        <div id="console-output">Check browser console for detailed logs</div>
+    </div>
+
+    <script>
+        console.log('🧪 Starting admin dashboard debug...');
+        
+        // Test 1: Basic JavaScript
+        document.getElementById('js-test').innerHTML = '<span class="success">✅ JavaScript is working</span>';
+        
+        // Test 2: API Base
+        const API_BASE = window.location.origin + '/api';
+        console.log('🌐 API_BASE:', API_BASE);
+        
+        // Test 3: API Connection
+        fetch(API_BASE + '/classes')
+            .then(response => {
+                if (response.ok) {
+                    document.getElementById('api-test').innerHTML = '<span class="success">✅ API connection working</span>';
+                    return response.json();
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            })
+            .then(data => {
+                console.log('📚 Classes data:', data);
+            })
+            .catch(error => {
+                console.error('❌ API Error:', error);
+                document.getElementById('api-test').innerHTML = `<span class="error">❌ API Error: ${error.message}</span>`;
+            });
+        
+        // Test 4: Load admin dashboard script
+        const script = document.createElement('script');
+        script.src = 'admin-dashboard.js';
+        script.onload = function() {
+            console.log('✅ Admin dashboard script loaded');
+            
+            // Test functions
+            const functions = [
+                'formatIndonesianDate',
+                'showSection',
+                'loadStats',
+                'loadReports'
+            ];
+            
+            let functionResults = [];
+            functions.forEach(funcName => {
+                if (typeof window[funcName] === 'function') {
+                    functionResults.push(`<span class="success">✅ ${funcName}</span>`);
+                } else {
+                    functionResults.push(`<span class="error">❌ ${funcName} missing</span>`);
+                }
+            });
+            
+            document.getElementById('function-test').innerHTML = functionResults.join('<br>');
+            
+            // Test date formatting
+            try {
+                const testDate = '2026-02-03';
+                const formatted = formatIndonesianDate(testDate);
+                console.log('📅 Date formatting test:', formatted);
+            } catch (error) {
+                console.error('❌ Date formatting error:', error);
+            }
+        };
+        
+        script.onerror = function() {
+            console.error('❌ Failed to load admin dashboard script');
+            document.getElementById('function-test').innerHTML = '<span class="error">❌ Failed to load admin-dashboard.js</span>';
+        };
+        
+        document.head.appendChild(script);
+        
+        console.log('🧪 Debug setup complete');
+    </script>
+</body>
+</html>

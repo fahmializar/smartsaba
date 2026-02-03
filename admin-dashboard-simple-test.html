@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard Simple Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; }
+        .nav-item { display: inline-block; margin: 5px; padding: 10px; background: #007bff; color: white; cursor: pointer; }
+        .nav-item.active { background: #0056b3; }
+        .content-section { display: none; padding: 20px; border: 1px solid #ddd; }
+        .content-section.active { display: block; }
+    </style>
+</head>
+<body>
+    <h1>Admin Dashboard Simple Test</h1>
+    
+    <div class="test-section">
+        <h2>Navigation Test</h2>
+        <div class="nav-item active" onclick="showSection('overview')">Overview</div>
+        <div class="nav-item" onclick="showSection('reports')">Reports</div>
+        <div class="nav-item" onclick="showSection('analytics')">Analytics</div>
+    </div>
+    
+    <div class="test-section">
+        <div id="overview" class="content-section active">
+            <h3>Overview Section</h3>
+            <p>Total Reports: <span id="totalReports">Loading...</span></p>
+            <p>Active Classes: <span id="activeClasses">Loading...</span></p>
+        </div>
+        
+        <div id="reports" class="content-section">
+            <h3>Reports Section</h3>
+            <div id="reportsList">Loading reports...</div>
+        </div>
+        
+        <div id="analytics" class="content-section">
+            <h3>Analytics Section</h3>
+            <canvas id="attendanceChart" width="400" height="200"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // Simple showSection function
+        function showSection(sectionId) {
+            console.log('showSection called with:', sectionId);
+            
+            // Hide all sections
+            document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+            
+            // Show target section
+            const target = document.getElementById(sectionId);
+            if (target) {
+                target.classList.add('active');
+                console.log('Section activated:', sectionId);
+            } else {
+                console.error('Section not found:', sectionId);
+            }
+            
+            // Update nav
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+        
+        // Test API connection
+        const API_BASE = window.location.origin + '/api';
+        
+        async function testAPI() {
+            try {
+                const response = await fetch(API_BASE + '/all-reports');
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('API test successful:', data.length, 'reports');
+                    document.getElementById('totalReports').textContent = data.length;
+                    
+                    // Test classes
+                    const classesResponse = await fetch(API_BASE + '/classes');
+                    if (classesResponse.ok) {
+                        const classes = await classesResponse.json();
+                        document.getElementById('activeClasses').textContent = classes.length;
+                    }
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                console.error('API test failed:', error);
+                document.getElementById('totalReports').textContent = 'Error';
+                document.getElementById('activeClasses').textContent = 'Error';
+            }
+        }
+        
+        // Run tests
+        testAPI();
+        
+        console.log('Simple test loaded');
+    </script>
+</body>
+</html>

@@ -52,6 +52,10 @@
                     <i class="fas fa-clipboard-list"></i>
                     <span>Laporan Kehadiran</span>
                 </a>
+                <a href="#schedules" class="nav-item" onclick="showSection('schedules')">
+                    <i class="fas fa-calendar-week"></i>
+                    <span>Jadwal Kelas</span>
+                </a>
                 <a href="#analytics" class="nav-item" onclick="showSection('analytics')">
                     <i class="fas fa-chart-bar"></i>
                     <span>Analitik</span>
@@ -252,6 +256,131 @@
                     <div class="reports-summary" id="reportsSummary"></div>
                     <div class="reports-list" id="reportsList"></div>
                 </div>
+            </section>
+
+            <section id="schedules" class="content-section">
+                <div class="section-header">
+                    <h2>Jadwal Kelas Terdaftar</h2>
+                    <p>Lihat dan kelola jadwal pelajaran yang telah didaftarkan oleh setiap kelas</p>
+                </div>
+
+                <div class="schedules-filters">
+                    <div class="filter-group">
+                        <label for="scheduleFilterClass">Pilih Kelas</label>
+                        <select id="scheduleFilterClass" onchange="loadClassSchedules()">
+                            <option value="">Pilih Kelas</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="scheduleFilterDay">Hari</label>
+                        <select id="scheduleFilterDay" onchange="loadClassSchedules()">
+                            <option value="">Semua Hari</option>
+                            <option value="Senin">Senin</option>
+                            <option value="Selasa">Selasa</option>
+                            <option value="Rabu">Rabu</option>
+                            <option value="Kamis">Kamis</option>
+                            <option value="Jumat">Jumat</option>
+                        </select>
+                    </div>
+                    <button class="filter-btn" onclick="loadClassSchedules()">
+                        <i class="fas fa-search"></i> Lihat Jadwal
+                    </button>
+                    <button class="export-btn" onclick="exportSchedules()">
+                        <i class="fas fa-download"></i> Export Jadwal
+                    </button>
+                </div>
+
+                <div class="schedules-summary" id="schedulesSummary">
+                    <div class="summary-card">
+                        <div class="summary-icon">
+                            <i class="fas fa-calendar-check"></i>
+                        </div>
+                        <div class="summary-info">
+                            <h3 id="totalScheduledClasses">0</h3>
+                            <p>Kelas dengan Jadwal</p>
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="summary-info">
+                            <h3 id="totalScheduledPeriods">0</h3>
+                            <p>Total Jam Pelajaran</p>
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-icon">
+                            <i class="fas fa-chalkboard-teacher"></i>
+                        </div>
+                        <div class="summary-info">
+                            <h3 id="totalActiveTeachers">0</h3>
+                            <p>Guru Aktif</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="schedules-container">
+                    <div class="schedule-overview" id="scheduleOverview">
+                        <div class="no-selection">
+                            <i class="fas fa-calendar-alt"></i>
+                            <h3>Pilih Kelas untuk Melihat Jadwal</h3>
+                            <p>Gunakan dropdown di atas untuk memilih kelas dan melihat jadwal pelajaran mereka</p>
+                        </div>
+                    </div>
+                    
+                    <div class="schedule-details" id="scheduleDetails" style="display: none;">
+                        <div class="schedule-header">
+                            <h3 id="selectedClassName">Jadwal Kelas</h3>
+                            <div class="schedule-actions">
+                                <button class="action-btn edit-btn" onclick="editClassSchedule()">
+                                    <i class="fas fa-edit"></i> Edit Jadwal
+                                </button>
+                                <button class="action-btn delete-btn" onclick="deleteClassSchedule()">
+                                    <i class="fas fa-trash"></i> Hapus Jadwal
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="schedule-tabs">
+                            <div class="tab-buttons">
+                                <button class="tab-btn active" onclick="switchScheduleTab('table')">
+                                    <i class="fas fa-table"></i> Tabel
+                                </button>
+                                <button class="tab-btn" onclick="switchScheduleTab('weekly')">
+                                    <i class="fas fa-calendar-week"></i> Mingguan
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="schedule-content">
+                            <div id="scheduleTableView" class="schedule-view active">
+                                <div class="table-container">
+                                    <table id="scheduleTable" class="schedule-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Hari</th>
+                                                <th>Jam</th>
+                                                <th>Mata Pelajaran</th>
+                                                <th>Guru</th>
+                                                <th>Waktu</th>
+                                                <th>Aksi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="scheduleTableBody">
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <div id="scheduleWeeklyView" class="schedule-view">
+                                <div class="weekly-schedule-grid" id="weeklyScheduleGrid">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </section>
 
             <section id="analytics" class="content-section">

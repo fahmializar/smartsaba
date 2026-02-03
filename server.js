@@ -32,12 +32,15 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
-pool.on('error', (err) => {
-    console.error('Unexpected error on idle client', err);
+// Set timezone to avoid date conversion issues
+pool.on('connect', (client) => {
+    console.log('✓ Terhubung ke PostgreSQL Neon');
+    // Set timezone to UTC to ensure consistent date handling
+    client.query('SET timezone = "UTC"');
 });
 
-pool.on('connect', () => {
-    console.log('✓ Terhubung ke PostgreSQL Neon');
+pool.on('error', (err) => {
+    console.error('Unexpected error on idle client', err);
 });
 
 // 2. Initialize PostgreSQL Tables
@@ -554,7 +557,26 @@ app.post('/api/submit-attendance', async (req, res) => {
         }
 
         console.log(`📝 Submitting attendance for ${class_name} on ${date}`);
+        console.log(`📅 Date received from client: "${date}" (type: ${typeof date})`);
         console.log(`📊 Subjects: ${attendance.length}`);
+
+        // Validate and ensure date format is correct (YYYY-MM-DD)
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(date)) {
+            console.error(`❌ Invalid date format received: ${date}`);
+            return res.status(400).json({ success: false, message: 'Invalid date format. Expected YYYY-MM-DD' });
+        }
+
+        // Parse date components to ensure no timezone conversion
+        const [year, month, day] = date.split('-').map(Number);
+        const dateObj = new Date(year, month - 1, day); // month is 0-indexed
+        const formattedDate = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+        
+        console.log(`📅 Date validation: input="${date}", parsed="${formattedDate}", components=[${year}, ${month}, ${day}]`);
+        
+        if (date !== formattedDate) {
+            console.warn(`⚠️ Date format corrected: ${date} → ${formattedDate}`);
+        }
 
         // First, delete any existing reports for this class and date to prevent duplicates
         const deleteResult = await pool.query(
@@ -576,17 +598,31 @@ app.post('/api/submit-attendance', async (req, res) => {
             const endTime = item.endTime || '';
             const period = item.period || null;
             
-            await pool.query(
-                'INSERT INTO attendance (class_name, report_date, subject, teacher_name, status, time_slot, start_time, end_time, period) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+            console.log(`📝 Inserting: ${subject} for ${date} with status ${status}`);
+            
+            // Use explicit date casting to ensure PostgreSQL interprets it correctly
+            const insertResult = await pool.query(
+                'INSERT INTO attendance (class_name, report_date, subject, teacher_name, status, time_slot, start_time, end_time, period) VALUES ($1, $2::date, $3, $4, $5, $6, $7, $8, $9) RETURNING report_date',
                 [class_name, date, subject, teacher, status, timeSlot, startTime, endTime, period]
             );
+            
+            // Log what was actually stored in the database
+            const storedDate = insertResult.rows[0].report_date;
+            console.log(`📅 Stored in DB: ${storedDate} (original: ${date})`);
+            
+            // Check if there's a date mismatch
+            const storedDateStr = storedDate.toISOString().split('T')[0];
+            if (storedDateStr !== date) {
+                console.warn(`⚠️ DATE MISMATCH! Input: ${date}, Stored: ${storedDateStr}`);
+            }
         }
 
-        console.log(`✅ Successfully submitted ${attendance.length} attendance records`);
+        console.log(`✅ Successfully submitted ${attendance.length} attendance records for ${class_name} on ${date}`);
         res.json({ 
             success: true, 
             message: `Laporan kehadiran berhasil disimpan untuk ${attendance.length} mata pelajaran`,
-            replaced: deleteResult.rowCount > 0
+            replaced: deleteResult.rowCount > 0,
+            date_stored: date
         });
         
     } catch (err) {
@@ -609,7 +645,7 @@ app.get('/api/analytics', async (req, res) => {
         console.log('- month:', month);
         console.log('- year:', year);
         
-        let query = 'SELECT * FROM attendance WHERE status IS NOT NULL';
+        let query = 'SELECT *, report_date::text as report_date_text FROM attendance WHERE status IS NOT NULL';
         const params = [];
         let paramIndex = 1;
 
@@ -684,7 +720,7 @@ app.get('/api/analytics', async (req, res) => {
         // Group by date for trend
         const byDate = {};
         result.rows.forEach(row => {
-            const date = row.report_date;
+            const date = row.report_date_text || row.report_date;
             if (!byDate[date]) {
                 byDate[date] = { hadir: 0, tugas: 0, tidak: 0, total: 0 };
             }
@@ -719,10 +755,22 @@ app.get('/api/analytics', async (req, res) => {
 app.get('/api/attendance-history/:className', async (req, res) => {
     try {
         const { className } = req.params;
+        console.log(`📋 Fetching attendance history for: ${className}`);
+        
         const result = await pool.query(
-            'SELECT * FROM attendance WHERE class_name = $1 ORDER BY report_date DESC, timestamp DESC',
+            'SELECT *, report_date::text as report_date_string FROM attendance WHERE class_name = $1 ORDER BY report_date DESC, timestamp DESC',
             [className]
         );
+        
+        // Log the first few results to debug date issues
+        if (result.rows.length > 0) {
+            console.log(`📅 Sample dates from DB:`, result.rows.slice(0, 3).map(row => ({
+                original_date: row.report_date,
+                date_string: row.report_date_string,
+                subject: row.subject
+            })));
+        }
+        
         res.json(result.rows);
     } catch (err) {
         console.error('Error fetching history:', err);

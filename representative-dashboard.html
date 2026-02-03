@@ -57,6 +57,22 @@
         .day-tab { padding: 10px 20px; background: #e2e8f0; border-radius: 8px; cursor: pointer; font-weight: 600; white-space: nowrap; transition: 0.3s; }
         .day-tab.active { background: var(--primary); color: white; }
 
+        /* Time Slot Checkboxes Styling */
+        .timeslot-checkboxes input[type="checkbox"] {
+            accent-color: var(--primary);
+            cursor: pointer;
+        }
+        
+        .timeslot-checkboxes label:hover {
+            background-color: #f1f5f9;
+            border-radius: 4px;
+        }
+        
+        .timeslot-checkboxes input[type="checkbox"]:checked + label {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
         button.btn-primary { background: var(--primary); color: white; border: none; padding: 12px 25px; border-radius: 10px; cursor: pointer; font-weight: 600; transition: 0.3s; }
         button.btn-primary:hover { opacity: 0.9; transform: translateY(-2px); }
 
@@ -103,6 +119,21 @@
             .card h3 { font-size: 16px; margin-bottom: 15px; }
 
             .schedule-weekly-container { flex-direction: column; }
+
+            /* Mobile time slot checkboxes */
+            .timeslot-checkboxes {
+                max-height: 150px !important;
+                font-size: 12px;
+            }
+            
+            .timeslot-checkboxes > div {
+                padding: 6px !important;
+                margin-bottom: 6px !important;
+            }
+            
+            .timeslot-checkboxes label {
+                font-size: 12px !important;
+            }
 
             table { font-size: 0.8em !important; }
             table th, table td { padding: 8px !important; }
@@ -263,7 +294,18 @@
 
     <script src="representative-dashboard.js"></script>
     <script>
-        document.getElementById('reportDate').valueAsDate = new Date();
+        // Set today's date properly without timezone issues
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        const todayString = `${year}-${month}-${day}`;
+        
+        document.getElementById('reportDate').value = todayString;
+        console.log(`📅 Default date set to: ${todayString}`);
+        
+        // Load today's schedule with the properly formatted date
+        loadTodaySchedule(todayString);
     </script>
 </body>
 </html>
